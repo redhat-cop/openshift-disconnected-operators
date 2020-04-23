@@ -57,7 +57,7 @@ def main():
   CreateCatalogImageAndPushToLocalRegistry()
 
   print("Mirroring related images to offline registry...")
-  MirrorImagesToLocalRegistry()
+  #MirrorImagesToLocalRegistry()
 
   print("Creating Image Content Source Policy YAML...")
   CreateImageContentSourcePolicyFile()
@@ -151,6 +151,7 @@ def downloadManifest(quay_operator_reg_name, quay_operator_version, quay_operato
   tf = tarfile.open(operator_archive_file)
   tf.extractall(manifest_root_dir)
   operatorCsvYaml = getOperatorCsvYaml(quay_operator_name)
+  print("Getting list of related images from " + quay_operator_name + " operator")
   extractRelatedImagesToFile(operatorCsvYaml)
 
 
@@ -192,14 +193,17 @@ def GetOperatorCsvPath(search_path, search_string):
           if search_string in f.read():
             return os.path.join(root,filename)
 
-  
 
 # Write related images from an operator CSV YAML to a file for later processing
 def extractRelatedImagesToFile(operatorCsvYaml):
   with open(operator_related_image_list_file, 'a') as f:
     for entry in operatorCsvYaml['spec']['relatedImages']:
-      f.write(entry['image'])
-      f.write("\n")
+      if('image' in entry):
+        f.write(entry['image'])
+        f.write("\n")
+      elif('value' in entry):
+        f.write(entry['value'])
+        f.write("\n")
 
 
 # Create custom catalog image and push it to offline registry
