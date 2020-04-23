@@ -57,7 +57,7 @@ def main():
   CreateCatalogImageAndPushToLocalRegistry()
 
   print("Mirroring related images to offline registry...")
-  #MirrorImagesToLocalRegistry()
+  MirrorImagesToLocalRegistry()
 
   print("Creating Image Content Source Policy YAML...")
   CreateImageContentSourcePolicyFile()
