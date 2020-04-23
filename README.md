@@ -38,8 +38,15 @@ For a full list of operators that work offline please see link below
     a. offline_registry_catalog_repo_url
     b. offline_registry_olm_images_repo_url
 4. Update the offline-operator-list file with the operators you want to include in the catalog creation and mirroring. See <https://access.redhat.com/articles/4740011> for list of supported offline operators.
-5. run ./run.sh
-6. Apply the yaml files in the publish folder
+5. run shell script
+```Shell
+./run.sh
+```
+6. Disable defautl operator source
+```Shell
+oc patch OperatorHub cluster --type json -p '[{"op": "add", "path": "/spec/disableAllDefaultSources", "value": true}]'
+```
+7. Apply the yaml files in the publish folder
     a. The image content source policy will create a new MCO render which will start a rolling reboot of your cluster nodes. You have to wait until that is complete before attemtping to install operators from the catalog
 
 ## Script Notes
