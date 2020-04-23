@@ -16,9 +16,9 @@ This is a quick and dirty first version. Any contributions to make this prettier
 
 This tool was tested with the following tools
 
-Python 3.7.6
-podman v1.8
-skopeo 0.1.41
+1. Python 3.7.6
+2. Podman v1.8
+3. Skopeo 0.1.41
 
 Please note this only works with operators that meet the following criterea
 
