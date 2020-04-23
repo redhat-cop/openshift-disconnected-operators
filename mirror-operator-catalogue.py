@@ -252,6 +252,7 @@ def MirrorImagesToLocalRegistry():
       if isBadImage(image) == False:
         destUrl = ChangeBaseRegistryUrl(image)
         try:
+          print("Image: " + image)
           cmd_args = "skopeo copy -a docker://" + image + " docker://" + destUrl
           subprocess.run(cmd_args, shell=True, check=True)
         except subprocess.CalledProcessError as e:
