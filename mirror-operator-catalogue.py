@@ -1,12 +1,20 @@
+#!/usr/bin/env python3
 import os, re, json, tarfile, shutil, yaml, subprocess
 import urllib.request
 from pathlib import Path
 
+import argparse
+
+parser = argparse.ArgumentParser(description='Mirror individual operators to an offline registry')
+parser.add_argument("--authfile", default=None, help="Pull secret with credentials")
+parser.add_argument("--registry-olm", required=True, help="Registry to copy the operator images")
+parser.add_argument("--registry-catalog", required=True, help="Registry to copy the catalog image")
+parser.add_argument("--catalog-version", default="1.0.0", help="Tag for the catalog image")
+args = parser.parse_args()
+
+
 
 # Global Variables
-offline_registry_catalog_repo_url=os.environ['offline_registry_catalog_repo_url']
-offline_registry_olm_images_repo_url=os.environ['offline_registry_olm_images_repo_url']
-catalog_version = os.environ['catalog_version']
 operator_channel = "4.3"
 script_root_dir = os.path.dirname(os.path.realpath(__file__))
 content_root_dir = script_root_dir + "/content"
@@ -26,13 +34,7 @@ catalog_source_output_file = publish_root_dir + "/rh-catalog-source.yaml"
 mod_package_file_name = content_root_dir + "/mod_packages.json"
 nl = "\n"
 
-
-
 def main():
-  # validate registry url has been set
-  if offline_registry_catalog_repo_url == "" or offline_registry_olm_images_repo_url == "":
-    print("Registry url should be set please see README.md for instructions")
-    exit(1)
   # clean and recreate contents directory
   dirpath = Path(content_root_dir)
   publishpath = Path(publish_root_dir)
@@ -65,9 +67,6 @@ def main():
   print("Catalogue creation and image mirroring complete")
   print("See Publish folder for the image content source policy and catalog source yaml files to apply to your cluster")
 
-
-
-
 # Get a List of repos to mirror
 def GetRepoListToMirror(images):
   reg = r"^(.*\/){2}"
@@ -86,11 +85,9 @@ def GetRepoListToMirror(images):
 
   return mirrorList
 
-
 # Download Red Hat Channel OLM pcakage file
 def downloadOlmPackageFile():
   urllib.request.urlretrieve(redhat_operators_packages_url, redhat_operators_packages_filename)
-
 
 def extractWhiteListedOperators():
   
@@ -156,32 +153,27 @@ def downloadManifest(quay_operator_reg_name, quay_operator_version, quay_operato
 
 
 def getOperatorCsvYaml(operator_name):
-  #csvData = None
-  with os.scandir(manifest_root_dir) as directories:
-    for directory in directories:
-      if operator_name in directory.name and directory.is_dir:
-        with os.scandir(directory.path) as manifest_items:
-          for manifest_item in manifest_items:
-            if "package" in manifest_item.name and manifest_item.is_file:
-              with open(manifest_item.path, 'r') as packageYamlFile:
+  for dirpath, dirnames, files in os.walk(manifest_root_dir):
+    for file_name in files:
+      if "package" in file_name:
+        with open(os.path.join(dirpath, file_name), 'r') as packageYamlFile:
+          try:
+            packageYaml = yaml.safe_load(packageYamlFile)
+            default = packageYaml['defaultChannel']
+            for channel in packageYaml['channels']:
+              if channel['name'] == default:
+                currentChannel = channel['currentCSV']
+                csvFilePath = GetOperatorCsvPath(dirpath, currentChannel)
+                with open(csvFilePath, 'r') as yamlFile:
                   try:
-                    packageYaml = yaml.safe_load(packageYamlFile)
-                    default = packageYaml['defaultChannel']
-                    for channel in packageYaml['channels']:
-                      if channel['name'] == default:
-                        currentChannel = channel['currentCSV']
-                        csvFilePath = GetOperatorCsvPath(directory.path, currentChannel)
-
-                        with open(csvFilePath, 'r') as yamlFile:
-                          try:
-                            csvYaml = yaml.safe_load(yamlFile)
-                            return csvYaml
-                          except yaml.YAMLError as exc:
-                            print(exc)
-                          break
+                    csvYaml = yaml.safe_load(yamlFile)
+                    return csvYaml
                   except yaml.YAMLError as exc:
                     print(exc)
                   break
+          except yaml.YAMLError as exc:
+            print(exc)
+          break
   return None
 
 # Search within manifest folder for operator for correct CSV
@@ -192,7 +184,6 @@ def GetOperatorCsvPath(search_path, search_string):
         with open(os.path.join(root,filename)) as f:
           if search_string in f.read():
             return os.path.join(root,filename)
-
 
 # Write related images from an operator CSV YAML to a file for later processing
 def extractRelatedImagesToFile(operatorCsvYaml):
@@ -208,12 +199,16 @@ def extractRelatedImagesToFile(operatorCsvYaml):
 
 # Create custom catalog image and push it to offline registry
 def CreateCatalogImageAndPushToLocalRegistry():
-  image_url = offline_registry_catalog_repo_url + "/" + redhat_operators_image_name + ":" + catalog_version
+  image_url = args.registry_catalog + "/" + redhat_operators_image_name + ":" + args.catalog_version
   cmd_args = "podman build " + script_root_dir + " -t " + image_url
   subprocess.run(cmd_args, shell=True, check=True)
 
   print("Pushing catalog image to offline registry...")
-  cmd_args = "podman push " + image_url
+  if args.authfile:
+    cmd_args = "podman push --authfile {} {}".format(args.authfile, image_url)
+  else:
+      cmd_args = "podman push {} ".format(image_url)
+
   subprocess.run(cmd_args, shell=True, check=True)
   CreateCatalogSourceYaml(image_url)
 
@@ -253,8 +248,7 @@ def MirrorImagesToLocalRegistry():
         destUrl = ChangeBaseRegistryUrl(image)
         try:
           print("Image: " + image)
-          cmd_args = "skopeo copy -a docker://" + image + " docker://" + destUrl
-          subprocess.run(cmd_args, shell=True, check=True)
+          CopyImageToDestinationRegistry(image, destUrl, args.authfile)
         except subprocess.CalledProcessError as e:
           print("ERROR Copying image: " + image)
           print("TO")
@@ -270,8 +264,12 @@ def MirrorImagesToLocalRegistry():
   print("Finished mirroring related images.")
 
 
-def CopyImageToDestinationRegistry(sourceImageUrl, destinationImageUrl):
-    cmd_args = "skopeo copy -a docker://" + sourceImageUrl + " docker://" + destinationImageUrl
+def CopyImageToDestinationRegistry(sourceImageUrl, destinationImageUrl, authfile=None):
+    if args.authfile:
+        cmd_args = "skopeo copy --authfile {} -a docker://{} docker://{}".format(authfile, sourceImageUrl,destinationImageUrl)
+    else:
+        cmd_args = "skopeo copy -a docker://{} docker://{}".format(sourceImageUrl, destinationImageUrl)
+
     subprocess.run(cmd_args, shell=True, check=True)
 
 # Create Image Content Source Policy Yaml to apply to OCP cluster
@@ -291,7 +289,7 @@ def CreateImageContentSourcePolicyFile():
 
 def ChangeBaseRegistryUrl(image_url):
   res = image_url.find("/")
-  return offline_registry_olm_images_repo_url + image_url[res:]
+  return args.registry_olm + image_url[res:]
 
 def isBadImage(image):
   with open(operator_known_bad_image_list_file, 'r') as f:
