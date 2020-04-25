@@ -31,18 +31,13 @@ For a full list of operators that work offline please see link below
 ## Running the script
 
 1. Install the tools listed in the requirments section
-2. Using Podman login to the following registries:
-    a. registry.redhat.io
-    b. local registry you want to publish the catalogue and related images to
-3. Update the following variables in run.sh file for your environment
-    a. offline_registry_catalog_repo_url
-    b. offline_registry_olm_images_repo_url
-4. Update the offline-operator-list file with the operators you want to include in the catalog creation and mirroring. See <https://access.redhat.com/articles/4740011> for list of supported offline operators.
-5. run shell script
+2. To authenticate use the parameter --authfile <pull-secret>
+3. Update the offline-operator-list file with the operators you want to include in the catalog creation and mirroring. See <https://access.redhat.com/articles/4740011> for list of supported offline operators.
+4. Execute the app. Use --help to see the options:
 ```Shell
-./run.sh
+./mirror-operator-catalogue.py --help
 ```
-6. Disable defautl operator source
+6. Disable default operator source
 ```Shell
 oc patch OperatorHub cluster --type json -p '[{"op": "add", "path": "/spec/disableAllDefaultSources", "value": true}]'
 ```
