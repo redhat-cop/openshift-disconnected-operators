@@ -32,6 +32,8 @@ For a full list of operators that work offline please see link below
 
 1. Install the tools listed in the requirments section
 2. To authenticate use the parameter --authfile <pull-secret>
+    a. The auth file is a json file generated when you do a docker or podman login to a registry. You should do a login against registry.redhat.io as well as your offline registry (if authentication is required).
+    b. The auth file is located either in your home directory under .docker or under /run/user/your_uid/containers/auth.json
 3. Update the offline-operator-list file with the operators you want to include in the catalog creation and mirroring. See <https://access.redhat.com/articles/4740011> for list of supported offline operators.
 4. Execute the app. Use --help to see the options:
 ```Shell

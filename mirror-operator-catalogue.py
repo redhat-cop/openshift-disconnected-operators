@@ -200,7 +200,7 @@ def extractRelatedImagesToFile(operatorCsvYaml):
 # Create custom catalog image and push it to offline registry
 def CreateCatalogImageAndPushToLocalRegistry():
   image_url = args.registry_catalog + "/" + redhat_operators_image_name + ":" + args.catalog_version
-  cmd_args = "podman build " + script_root_dir + " -t " + image_url
+  cmd_args = "podman build --format docker " + script_root_dir + " -t " + image_url
   subprocess.run(cmd_args, shell=True, check=True)
 
   print("Pushing catalog image to offline registry...")
