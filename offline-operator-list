@@ -1,2 +1,4 @@
-local-storage-operator
+sriov-network-operator
+kubevirt-hyperconverge
+elasticsearch-operator
 cluster-logging

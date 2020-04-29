@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-import os, re, json, tarfile, shutil, yaml, subprocess
+import os, glob, re, json, tarfile, shutil, yaml, subprocess
 import urllib.request
 from pathlib import Path
 
+import tempfile
 import argparse
 
 parser = argparse.ArgumentParser(description='Mirror individual operators to an offline registry')
@@ -10,41 +11,38 @@ parser.add_argument("--authfile", default=None, help="Pull secret with credentia
 parser.add_argument("--registry-olm", required=True, help="Registry to copy the operator images")
 parser.add_argument("--registry-catalog", required=True, help="Registry to copy the catalog image")
 parser.add_argument("--catalog-version", default="1.0.0", help="Tag for the catalog image")
+parser.add_argument("--operator-channel", default="4.3", help="Operator Channel. Default 4.3")
+parser.add_argument("--operator-list", nargs="*", required=True, help="List of operators to mirror")
 args = parser.parse_args()
 
-
-
 # Global Variables
-operator_channel = "4.3"
 script_root_dir = os.path.dirname(os.path.realpath(__file__))
-content_root_dir = script_root_dir + "/content"
-manifest_root_dir = content_root_dir + "/manifests"
-publish_root_dir = script_root_dir + "/publish"
-operator_related_image_list_file = content_root_dir + "/imagelist"
-operator_known_bad_image_list_file = script_root_dir + "/known-bad-images"
-offline_operator_list_file =  script_root_dir + "/offline-operator-list"
+content_root_dir = tempfile.TemporaryDirectory()
+manifest_root_dir = tempfile.TemporaryDirectory()
+publish_root_dir = os.path.join(script_root_dir, 'publish')
+operator_related_image_list_file = os.path.join(content_root_dir.name, "imagelist")
+operator_known_bad_image_list_file = os.path.join(script_root_dir, "known-bad-images")
+offline_operator_list_file = os.path.join(script_root_dir, "offline-operator-list")
 quay_rh_base_url="https://quay.io/cnr/api/v1/packages/"
 redhat_operators_image_name = "redhat-operators"
 redhat_operators_packages_url = "https://quay.io/cnr/api/v1/packages?namespace=redhat-operators"
-redhat_operators_packages_filename = content_root_dir + "/packages.json"
+redhat_operators_packages_filename = os.path.join(content_root_dir.name, 'packages.json')
 image_content_source_policy_template_file = script_root_dir + "/image-content-source-template"
 catalog_source_template_file = script_root_dir + "/catalog-source-template"
-image_content_source_policy_output_file = publish_root_dir + "/olm-icsp.yaml"
-catalog_source_output_file = publish_root_dir + "/rh-catalog-source.yaml"
-mod_package_file_name = content_root_dir + "/mod_packages.json"
+image_content_source_policy_output_file = os.path.join(publish_root_dir, 'olm-icsp.yaml')
+catalog_source_output_file = os.path.join(publish_root_dir, 'rh-catalog-source.yaml')
+mod_package_file_name = os.path.join(content_root_dir.name, 'mod_packages.json')
 nl = "\n"
 
 def main():
-  # clean and recreate contents directory
-  dirpath = Path(content_root_dir)
   publishpath = Path(publish_root_dir)
-  if dirpath.exists() and dirpath.is_dir():
-      shutil.rmtree(dirpath)
   if publishpath.exists() and publishpath.is_dir():
-      shutil.rmtree(publishpath)
-  os.mkdir(content_root_dir)
+    shutil.rmtree(publishpath)
+
   os.mkdir(publishpath)
+
   print("Starting Catalog Build and Mirror...")
+  
   # Download OLM Package File with all operators
   print("Downloading OLM package for Redhat Operators...")
   downloadOlmPackageFile()
@@ -66,6 +64,10 @@ def main():
 
   print("Catalogue creation and image mirroring complete")
   print("See Publish folder for the image content source policy and catalog source yaml files to apply to your cluster")
+
+  # Cleanup temporary folders
+  #shutil.rmtree(content_root_dir.name)
+  #shutil.rmtree(manifest_root_dir.name)
 
 # Get a List of repos to mirror
 def GetRepoListToMirror(images):
@@ -90,90 +92,75 @@ def downloadOlmPackageFile():
   urllib.request.urlretrieve(redhat_operators_packages_url, redhat_operators_packages_filename)
 
 def extractWhiteListedOperators():
-  
   # Open Red Hat channel OLM package file
   with open(redhat_operators_packages_filename) as f:
     data = json.load(f)
 
-  mod_package_file_data="["
-  with open(offline_operator_list_file) as f:
-    first_item = True
-    for op in (l.rstrip('\n') for l in f):
-      op = op.strip()
-      for c in data:
-          if(c["name"].find(op) != -1):
-              if first_item:
-                mod_package_file_data+= json.dumps(c)
-                first_item = False
-              else:
-                mod_package_file_data+= "," + json.dumps(c)
-  mod_package_file_data+="]"
-  mod_package_file_data_json = json.loads(mod_package_file_data)
-  print(json.dumps(mod_package_file_data_json, indent=4, sort_keys=True))
+  mod_package_file_data = []
+  for operator in args.operator_list:
+     for c in data:
+       if(c["name"].find(operator) != -1):
+         mod_package_file_data.append(c)
 
-  # Write new OLM package manifest to file
-  with open(mod_package_file_name, "w") as mod_package_file:
-      json.dump(mod_package_file_data_json, mod_package_file, indent=4, sort_keys=True)
-  return mod_package_file_data_json
+  mod_package_file_data_json = json.dumps(mod_package_file_data)
+  return json.loads(mod_package_file_data_json)
 
 # Download Manifests for each white listed operator
 def downloadAndProcessManifests(mod_package_file_data_json):
   for c in mod_package_file_data_json:
+    print("downloadandprocess")
     quay_operator_reg_name = c["name"]
     quay_operator_version = c["default"]
-    quay_operator_name = quay_operator_reg_name.partition("/")[2]
+    quay_operator_name = quay_operator_reg_name.split("/")[-1]
     downloadManifest(quay_operator_reg_name, quay_operator_version, quay_operator_name)
 
 # Download individual operator manifest
 def downloadManifest(quay_operator_reg_name, quay_operator_version, quay_operator_name):
-  print("quay_operator_reg_name:" + quay_operator_reg_name)
-  print("quay_operator_version:" + quay_operator_version)
-  print("quay_operator_name:" + quay_operator_name)
-  operator_base_url = quay_rh_base_url + quay_operator_reg_name
-  operator_digest_url = operator_base_url + "/" + quay_operator_version
+  print("quay_operator_reg_name: " + quay_operator_reg_name)
+  print("quay_operator_version: " + quay_operator_version)
+  print("quay_operator_name: " + quay_operator_name)
+  operator_base_url = "{}{}".format(quay_rh_base_url, quay_operator_reg_name)
+  operator_digest_url = "{}/{}".format(operator_base_url, quay_operator_version)
+
   print("Getting operator digest from: " + operator_digest_url)
 
-  operator_digest_file = content_root_dir + "/" + quay_operator_name + ".json"
+  operator_digest_file = os.path.join(content_root_dir.name, '{}.json'.format(quay_operator_name))
   urllib.request.urlretrieve(operator_digest_url, operator_digest_file)
-
 
   with open(operator_digest_file) as f:
     digest_data = json.load(f)
+
   operator_blob_url = operator_base_url + "/blobs/sha256/" + digest_data[0]["content"]["digest"]
   print("Downloading " + quay_operator_name + " opeartor archive from " + operator_blob_url + "..." )
-  operator_archive_file = content_root_dir + "/" + quay_operator_name + ".tar.gz"
+  operator_archive_file = os.path.join(content_root_dir.name, '{}.tar.gz'.format(quay_operator_name))
   urllib.request.urlretrieve(operator_blob_url, operator_archive_file)
 
   print("Extracting " + operator_archive_file)
   tf = tarfile.open(operator_archive_file)
-  tf.extractall(manifest_root_dir)
+  tf.extractall(manifest_root_dir.name)
   operatorCsvYaml = getOperatorCsvYaml(quay_operator_name)
   print("Getting list of related images from " + quay_operator_name + " operator")
   extractRelatedImagesToFile(operatorCsvYaml)
 
-
 def getOperatorCsvYaml(operator_name):
-  for dirpath, dirnames, files in os.walk(manifest_root_dir):
-    for file_name in files:
-      if "package" in file_name:
-        with open(os.path.join(dirpath, file_name), 'r') as packageYamlFile:
-          try:
-            packageYaml = yaml.safe_load(packageYamlFile)
-            default = packageYaml['defaultChannel']
-            for channel in packageYaml['channels']:
-              if channel['name'] == default:
-                currentChannel = channel['currentCSV']
-                csvFilePath = GetOperatorCsvPath(dirpath, currentChannel)
-                with open(csvFilePath, 'r') as yamlFile:
-                  try:
-                    csvYaml = yaml.safe_load(yamlFile)
-                    return csvYaml
-                  except yaml.YAMLError as exc:
-                    print(exc)
-                  break
-          except yaml.YAMLError as exc:
-            print(exc)
-          break
+  try:  
+    # Find manifest file
+    operatorPackagePath = glob.glob(os.path.join(manifest_root_dir.name, operator_name + '*', '*package*' ))
+    operatorManifestPath = os.path.dirname(operatorPackagePath[0])
+    operatorPackageFilename = operatorPackagePath[0]
+
+    with open(operatorPackageFilename, 'r') as packageYamlFile:
+      packageYaml = yaml.safe_load(packageYamlFile)
+      default = packageYaml['defaultChannel']
+      for channel in packageYaml['channels']:
+        if channel['name'] == default:
+          currentChannel = channel['currentCSV']
+          csvFilePath = GetOperatorCsvPath(operatorManifestPath, currentChannel)
+          with open(csvFilePath, 'r') as yamlFile:
+            csvYaml = yaml.safe_load(yamlFile)
+            return csvYaml
+  except (yaml.YAMLError, IOError) as exc:
+    print(exc)
   return None
 
 # Search within manifest folder for operator for correct CSV
