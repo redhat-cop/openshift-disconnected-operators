@@ -153,27 +153,31 @@ def downloadManifest(quay_operator_reg_name, quay_operator_version, quay_operato
 
 
 def getOperatorCsvYaml(operator_name):
-  for dirpath, dirnames, files in os.walk(manifest_root_dir):
-    for file_name in files:
-      if "package" in file_name:
-        with open(os.path.join(dirpath, file_name), 'r') as packageYamlFile:
-          try:
-            packageYaml = yaml.safe_load(packageYamlFile)
-            default = packageYaml['defaultChannel']
-            for channel in packageYaml['channels']:
-              if channel['name'] == default:
-                currentChannel = channel['currentCSV']
-                csvFilePath = GetOperatorCsvPath(dirpath, currentChannel)
-                with open(csvFilePath, 'r') as yamlFile:
+  with os.scandir(manifest_root_dir) as directories:
+    for directory in directories:
+      if operator_name in directory.name and directory.is_dir:
+        with os.scandir(directory.path) as manifest_items:
+          for manifest_item in manifest_items:
+            if "package" in manifest_item.name and manifest_item.is_file:
+              with open(manifest_item.path, 'r') as packageYamlFile:
                   try:
-                    csvYaml = yaml.safe_load(yamlFile)
-                    return csvYaml
+                    packageYaml = yaml.safe_load(packageYamlFile)
+                    default = packageYaml['defaultChannel']
+                    for channel in packageYaml['channels']:
+                      if channel['name'] == default:
+                        currentChannel = channel['currentCSV']
+                        csvFilePath = GetOperatorCsvPath(directory.path, currentChannel)
+
+                        with open(csvFilePath, 'r') as yamlFile:
+                          try:
+                            csvYaml = yaml.safe_load(yamlFile)
+                            return csvYaml
+                          except yaml.YAMLError as exc:
+                            print(exc)
+                          break
                   except yaml.YAMLError as exc:
                     print(exc)
                   break
-          except yaml.YAMLError as exc:
-            print(exc)
-          break
   return None
 
 # Search within manifest folder for operator for correct CSV
