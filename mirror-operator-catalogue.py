@@ -357,7 +357,7 @@ def CreateImageContentSourcePolicyFile(images):
         {'mirrors': [repoList[key]], 'source': key})
 
   with open(image_content_source_policy_output_file, "w") as f:
-    yaml.dump(icpt, f)
+    yaml.dump(icpt, f, default_flow_style=False)
 
 
 def ChangeBaseRegistryUrl(image_url):
