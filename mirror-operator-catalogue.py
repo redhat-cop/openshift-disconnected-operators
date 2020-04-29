@@ -104,7 +104,7 @@ def main():
 
   print("Mirroring related images to offline registry...")
   images = getImages()
-  #MirrorImagesToLocalRegistry(images)
+  MirrorImagesToLocalRegistry(images)
 
   print("Creating Image Content Source Policy YAML...")
   CreateImageContentSourcePolicyFile(images)
