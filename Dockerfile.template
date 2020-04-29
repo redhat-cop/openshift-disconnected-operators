@@ -9,7 +9,7 @@ RUN rm -rf /manifests \
     && chown -R 1001:1001 /db
 
 USER 1001
-COPY content/manifests/ /manifests
+COPY {{ manifestPath }} /manifests
 
 # Initialize the database
 RUN initializer --manifests /manifests/ --output /db/bundles.db
