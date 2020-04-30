@@ -49,8 +49,7 @@ mirror-operator-catalogue.py \
 ```Shell
 oc patch OperatorHub cluster --type json -p '[{"op": "add", "path": "/spec/disableAllDefaultSources", "value": true}]'
 ```
-7. Apply the yaml files in the publish folder
-    a. The image content source policy will create a new MCO render which will start a rolling reboot of your cluster nodes. You have to wait until that is complete before attemtping to install operators from the catalog
+7. Apply the yaml files in the publish folder. The image content source policy will create a new MCO render which will start a rolling reboot of your cluster nodes. You have to wait until that is complete before attemtping to install operators from the catalog
 
 
 ##### Script Arguements
