@@ -2,15 +2,10 @@
 
 This script will create a custom operator catalogue based on the desired operators and mirror the images to a local registry.
 
-FAQ:
-
 Why create this?
 
 Because the current catalog build and mirror (https://docs.openshift.com/container-platform/4.3/operators/olm-restricted-networks.html) takes 1-5 hours to create and more than 50% of the catalog is not usable offline anyways. This tool allows you to create a custom catalog with only the operators you need.
 
-Why is the code so ugly?
-
-This is a quick and dirty first version. Any contributions to make this prettier are welcome.
 
 ## Requirements
 
