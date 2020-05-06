@@ -28,8 +28,9 @@ For a full list of operators that work offline please see link below
 1. Install the tools listed in the requirments section
 2. Login to your offline registry using podman (This is the registry where you will be publishing the catalogue and related images)
 3. Login to registry.redhat.io using podman
-4. Update the offline-operator-list file with the operators you want to include in the catalog creation and mirroring. See <https://access.redhat.com/articles/4740011> for list of supported offline operators.
-5. Run the script
+4. Login to quay.io using podman
+5. Update the offline-operator-list file with the operators you want to include in the catalog creation and mirroring. See <https://access.redhat.com/articles/4740011> for list of supported offline operators.
+6. Run the script
 
 ```Shell
 mirror-operator-catalogue.py \
@@ -40,11 +41,11 @@ mirror-operator-catalogue.py \
 --operator-file ./offline-operator-list
 ```
 
-6. Disable default operator source
+7. Disable default operator source
 ```Shell
 oc patch OperatorHub cluster --type json -p '[{"op": "add", "path": "/spec/disableAllDefaultSources", "value": true}]'
 ```
-7. Apply the yaml files in the publish folder. The image content source policy will create a new MCO render which will start a rolling reboot of your cluster nodes. You have to wait until that is complete before attemtping to install operators from the catalog
+8. Apply the yaml files in the publish folder. The image content source policy will create a new MCO render which will start a rolling reboot of your cluster nodes. You have to wait until that is complete before attemtping to install operators from the catalog
 
 
 ##### Script Arguements
