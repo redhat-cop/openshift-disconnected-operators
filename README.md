@@ -57,7 +57,7 @@ Arbitrariy version number to tag your catalogue image
 
 ###### --authfile
 
-The location of the auth.json file generated when you use podman or docker to login registries using podman. The auth file is located either in your home directory under .docker or under /run/user/your_uid/containers/auth.json
+The location of the auth.json file generated when you use podman or docker to login registries using podman. The auth file is located either in your home directory under .docker or /run/user/your_uid/containers/auth.json or /var/run/containers/your_uid/auth.json
 
 
 ###### --registry-olm
