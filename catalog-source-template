@@ -6,5 +6,6 @@ metadata:
 spec:
   displayName: Red Hat Operators
   image: {{ CatalogSource }}
+  imagePullPolicy: Always
   publisher: Red Hat
   sourceType: grpc
