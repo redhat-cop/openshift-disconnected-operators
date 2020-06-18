@@ -118,7 +118,7 @@ def main():
 
 # Get a List of repos to mirror
 def GetRepoListToMirror(images):
-  reg = r"^(.*\/){2}"
+  reg = r"^(.*?\/){1}"
   sourceList = []
   mirrorList = {}
   for image in images:
@@ -362,7 +362,9 @@ def CreateImageContentSourcePolicyFile(images):
 
 def ChangeBaseRegistryUrl(image_url):
   res = image_url.find("/")
-  return args.registry_olm + image_url[res:]
+  if res != -1:
+    return args.registry_olm + image_url[res:]
+  return args.registry_olm
 
 
 def isBadImage(image):
