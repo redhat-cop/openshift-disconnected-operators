@@ -14,7 +14,7 @@ This tool was tested with the following versions of the runtime and utilities.
 1. Centos 7.8, Fedora 31
 2. Python 3.7.6 (with pyyaml,jinja2 library)
 3. Podman v1.8 (If you use anything below 1.8, you might run into issues with multi-arch manifests)
-4. Skopeo 0.1.41
+4. Skopeo 1.0
 
 Please note this only works with operators that meet the following criterea
 
