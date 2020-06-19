@@ -73,6 +73,8 @@ image_content_source_policy_output_file = os.path.join(
     publish_root_dir, 'olm-icsp.yaml')
 catalog_source_output_file = os.path.join(
     publish_root_dir, 'rh-catalog-source.yaml')
+mapping_file=os.path.join(
+    publish_root_dir, 'mapping.txt')
 
 
 def main():
@@ -109,6 +111,9 @@ def main():
   print("Creating Image Content Source Policy YAML...")
   CreateImageContentSourcePolicyFile(images)
 
+  print("Creating Mapping File...")
+  CreateMappingFile(images)
+
   print("Catalogue creation and image mirroring complete")
   print("See Publish folder for the image content source policy and catalog source yaml files to apply to your cluster")
 
@@ -134,6 +139,21 @@ def GetRepoListToMirror(images):
     mirrorList[source] = ChangeBaseRegistryUrl(source)
 
   return mirrorList
+
+# Get a Mapping of source to mirror images
+def GetSourceToMirrorMapping(images):
+  reg = r"^(.*@){1}"
+  mapping = {}
+  for image in images:
+    source = re.match(reg, image)
+    if source is None:
+      sourceRepo = image
+    else:
+      sourceRepo = source.group()[:-1]
+
+    mapping[image] = ChangeBaseRegistryUrl(sourceRepo)
+
+  return mapping
 
 # Download Red Hat Channel OLM pcakage file
 def downloadOlmPackageFile(redhat_operators_packages_url):
@@ -358,6 +378,14 @@ def CreateImageContentSourcePolicyFile(images):
 
   with open(image_content_source_policy_output_file, "w") as f:
     yaml.dump(icpt, f, default_flow_style=False)
+
+
+def CreateMappingFile(images):
+  repoList = GetSourceToMirrorMapping(images)
+  with open(mapping_file, "w") as f:
+    for key in repoList:
+      f.write(key + "=" + repoList[key])
+      f.write('\n')
 
 
 def ChangeBaseRegistryUrl(image_url):
