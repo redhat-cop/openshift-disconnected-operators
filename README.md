@@ -39,7 +39,8 @@ mirror-operator-catalogue.py \
 --authfile /run/user/0/containers/auth.json \
 --registry-olm local_registry_url:5000 \
 --registry-catalog local_registry_url:5000 \
---operator-file ./offline-operator-list
+--operator-file ./offline-operator-list \
+--icsp-scope=namespace
 ```
 
 7. Disable default operator source
@@ -82,6 +83,10 @@ local-storage-operator
 cluster-logging
 codeready-workspaces
 ```
+
+###### --icsp-scope
+
+Scope of registry mirrors in imagecontentsourcepolicy file. Allowed values: namespace, registry. Defaults to: namespace
 
 ## Updating The Catalogue
 
