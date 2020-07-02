@@ -49,6 +49,10 @@ group.add_argument(
     metavar="FILE",
     help="Specify a file containing the operators to mirror")
 parser.add_argument(
+    "--icsp-scope",
+    default="namespace",
+    help="Scope of registry mirrors in imagecontentsourcepolicy file. Allowed values: namespace, registry. Defaults to: namespace")
+parser.add_argument(
     "--output",
     default="publish",
     help="Directory to create YAML files")
@@ -123,7 +127,9 @@ def main():
 
 # Get a List of repos to mirror
 def GetRepoListToMirror(images):
-  reg = r"^(.*?\/){1}"
+  reg = r"^(.*\/){2}"
+  if args.icsp_scope == "registry":
+    reg = r"^(.*?\/){1}"
   sourceList = []
   mirrorList = {}
   for image in images:
