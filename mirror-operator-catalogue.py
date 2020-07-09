@@ -181,7 +181,7 @@ def extractWhiteListedOperators(redhat_operators_packages):
     mod_package_file_data = []
     for operator in operators:
       for c in data:
-        if(c["name"].find(operator) != -1):
+        if(operator.strip() != "" and c["name"].find(operator) != -1):
           mod_package_file_data.append(c)
 
     mod_package_file_data_json = json.dumps(mod_package_file_data)
