@@ -287,6 +287,14 @@ def extractRelatedImagesToFile(operatorCsvYaml):
     elif('value' in entry):
       setImages(entry['value'])
 
+  # Some operators don't have every image they need in the related images field
+  # We have to query the deployments spec to get the missing image(s)
+  for entry in operatorCsvYaml['spec']['install']['spec']['deployments']:
+    for container in entry['spec']['template']['spec']['containers']:
+      if('image' in container):
+        setImages(container['image'])
+
+
 # Create custom catalog image and push it to offline registry
 def CreateCatalogImageAndPushToLocalRegistry():
   image_url = args.registry_catalog + "/" + \
