@@ -366,7 +366,7 @@ def MirrorImagesToLocalRegistry(images):
         print("TO")
         print(destUrl)
         if (e.output is not None):
-          print("exception:" + e.output + nl)
+          print("exception:" + e.output)
         print("ERROR copying image!")
     else:
       print("Known bad image: {}\n{}".format(image, "ignoring..."))
