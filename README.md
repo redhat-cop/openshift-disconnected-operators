@@ -88,10 +88,16 @@ codeready-workspaces
 
 Scope of registry mirrors in imagecontentsourcepolicy file. Allowed values: namespace, registry. Defaults to: namespace
 
+###### --mirror-images
+
+This field is optional
+Default: True
+
+If set to True all related images will be mirrored to the registry provided by the --registry-olm arguement. Otherwise images will not be mirrored. Set to false if you are using a registry proxy and don't need to mirror images locally.
+
 ## Updating The Catalogue
 
 To update the catalogue simply run the script the same way you did the first time. An updated Catalogue image will be created and it will override the existing one in your registry. The only step after that is to delete the redhat-operators pod in the openshift-marketplace namespace. A new pod will get created and it will pull the latest catalogue image. 
-
 
 ## Script Notes
 

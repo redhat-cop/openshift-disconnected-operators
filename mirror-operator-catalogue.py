@@ -56,6 +56,10 @@ parser.add_argument(
     "--output",
     default="publish",
     help="Directory to create YAML files")
+parser.add_argument(
+    "--mirror-images",
+    default="True",
+    help="Boolean: Mirror related images. Default is True")
 args = parser.parse_args()
 
 # Global Variables
@@ -63,6 +67,7 @@ script_root_dir = os.path.dirname(os.path.realpath(__file__))
 content_root_dir = tempfile.mkdtemp()
 manifest_root_dir = tempfile.mkdtemp()
 publish_root_dir = args.output
+mirror_images = args.mirror_images
 operator_image_list = []
 operator_known_bad_image_list_file = os.path.join(
     script_root_dir, "known-bad-images")
@@ -107,10 +112,13 @@ def main():
 
   print("Creating custom catalogue image..")
   CreateCatalogImageAndPushToLocalRegistry()
-
-  print("Mirroring related images to offline registry...")
   images = getImages()
-  MirrorImagesToLocalRegistry(images)
+
+  if mirror_images.lower() == "true":
+    print("Mirroring related images to offline registry...")
+    MirrorImagesToLocalRegistry(images)
+  else:
+    print("--mirror-images=false    Skipping image mirroring")
 
   print("Creating Image Content Source Policy YAML...")
   CreateImageContentSourcePolicyFile(images)
@@ -122,8 +130,8 @@ def main():
   print("See Publish folder for the image content source policy and catalog source yaml files to apply to your cluster")
 
   # Cleanup temporary directories
-  shutil.rmtree(content_root_dir)
-  shutil.rmtree(manifest_root_dir)
+  # shutil.rmtree(content_root_dir)
+  # shutil.rmtree(manifest_root_dir)
 
 # Get a List of repos to mirror
 def GetRepoListToMirror(images):
