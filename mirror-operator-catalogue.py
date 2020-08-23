@@ -261,9 +261,9 @@ def getOperatorCsvYaml(operator_name):
 
     with open(operatorPackageFilename, 'r') as packageYamlFile:
       packageYaml = yaml.safe_load(packageYamlFile)
-      default = packageYaml['defaultChannel']
+      version = next((chan['name'] for chan in packageYaml['channels'] if chan['name'] == args.operator_channel), packageYaml['defaultChannel'])
       for channel in packageYaml['channels']:
-        if channel['name'] == default:
+        if channel['name'] == version:
           currentChannel = channel['currentCSV']
           csvFilePath = GetOperatorCsvPath(
               operatorManifestPath, currentChannel)

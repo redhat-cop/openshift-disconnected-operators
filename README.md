@@ -97,7 +97,7 @@ If set to True all related images will be mirrored to the registry provided by t
 
 ## Updating The Catalogue
 
-To update the catalogue simply run the script the same way you did the first time. An updated Catalogue image will be created and it will override the existing one in your registry. The only step after that is to delete the redhat-operators pod in the openshift-marketplace namespace. A new pod will get created and it will pull the latest catalogue image. 
+To update the catalogue,run the script the same way you did the first time and increment the catalog-version. An updated Catalogue image will be created. Afterwards do an "oc apply -f rh-catalog-source.yaml" to update the catalogsource with the new image.
 
 ## Script Notes
 
