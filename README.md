@@ -1,7 +1,6 @@
 # NOTE
 
-This tool can be used for OpenShift versions up to and including 4.5. As of OpenShift 4.6 please use the new OPM tool to create your custom catalogue and mirror your images. See instructions in the OCP docs https://docs.openshift.com/container-platform/4.6/operators/admin/olm-restricted-networks.html 
-
+This tool can be used for OpenShift versions up to and including 4.5. For 4.6 and newer use the updated script in the master branch.
 
 
 # OpenShift Offline Operator Catalogue Build and Mirror
