@@ -1,3 +1,9 @@
 /.vscode
 /content
-/publish
+/publish*
+/run*
+index*
+opm
+new-mirror.sh
+auth.json
+.gitignore

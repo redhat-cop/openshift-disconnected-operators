@@ -1,10 +1,14 @@
+# Note
+
+This script has been update for OpenShift 4.6+. Please see [this branch]() for earlier OCP releases
+
 # OpenShift Offline Operator Catalogue Build and Mirror
 
-This script will create a custom operator catalogue based on the desired operators and mirror the images to a local registry.
+This script has been This script will create a custom operator catalogue based on the desired operators and mirror the images to a local registry.
 
 Why create this?
 
-Because the current catalogue build and mirror (https://docs.openshift.com/container-platform/4.3/operators/olm-restricted-networks.html) takes 1-5 hours to create and more than 50% of the catalogue is not usable offline anyways. This tool allows you to create a custom catalogue with only the operators you need.
+Because the current catalogue build and mirror (https://docs.openshift.com/container-platform/4.6/operators/admin/olm-restricted-networks.html) takes 1-5 hours to create and more than 50% of the catalogue is not usable offline anyways. This tool allows you to create a custom catalogue with only the operators you need.
 
 
 ## Requirements
@@ -107,3 +111,22 @@ Unfortunately just because an image is listed in the related images spec doesn't
 
 If you need a to create a local secured registry follow the instructions from the link below
 <https://docs.openshift.com/container-platform/4.3/installing/install_config/installing-restricted-networks-preparations.html#installing-restricted-networks-preparations>
+
+
+
+
+## New research
+
+opm index prune -p "prometheus" --from-index quay.io/operator-framework/example-index:1.0.0 --tag quay.io/operator-framework/example-index:1.0.1
+
+
+opm index prune \
+    -f registry.redhat.io/redhat/redhat-operator-index:v4.6 \
+    -p local-storage-operator,cluster-logging,kubevirt-hyperconverged \
+    -t t480-rh.local:5000/redhat/custom-redhat-operator-index:v4.6 
+
+podman push t480-rh.local:5000/redhat/custom-redhat-operator-index:v4.6 --tls-verify=false --authfile auth.json
+
+opm index export --index="t480-rh.local:5000/redhat/custom-redhat-operator-index:v4.6" --package="kubevirt-hyperconverged" -c="podman" --skip-tls -f ./kubevirt
+
+opm index export --index="t480-rh.local:5000/redhat/custom-redhat-operator-index:v4.6" --package="cluster-logging" -c="podman" --skip-tls -f ./cluster-logging 
