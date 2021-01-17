@@ -1,24 +1,23 @@
-# Note
-
-This script has been update for OpenShift 4.6+. Please see [this branch]() for earlier OCP releases
-
-# OpenShift Offline Operator Catalogue Build and Mirror
+# OpenShift Offline Operator Catalogue
 
 This script has been This script will create a custom operator catalogue based on the desired operators and mirror the images to a local registry.
 
 Why create this?
 
-Because the current catalogue build and mirror (https://docs.openshift.com/container-platform/4.6/operators/admin/olm-restricted-networks.html) takes 1-5 hours to create and more than 50% of the catalogue is not usable offline anyways. This tool allows you to create a custom catalogue with only the operators you need.
+Because the current [catalogue build and mirror](https://docs.openshift.com/container-platform/4.6/operators/admin/olm-restricted-networks.html) process mirrors all versions of the operator which results in exponential amount of images that are mirrored that are unnecessary. For my use case only 100 images were required but I ended up with 1200 mirrored images.
 
+## Note
+
+This script has been update for OpenShift 4.6+. Please use the script in the ocp4.5 branch  for earlier OCP releases 4.5 and earlier
 
 ## Requirements
 
 This tool was tested with the following versions of the runtime and utilities.
 
-1. Centos 7.8, Fedora 31
+1. RHEL 8.2, Fedora 33 (For OPM tool RHEL 8 or Fedora equivalent is a hard requirement due to dependency on glibc version 2.28+)
 2. Python 3.7.6 (with pyyaml,jinja2 library)
-3. Podman v1.8 (If you use anything below 1.8, you might run into issues with multi-arch manifests)
-4. Skopeo 1.0 (If you use anything below 1.0 you might have issue with the newer manifests)
+3. Podman v2.0+ (If you use anything below 1.8, you might run into issues with multi-arch manifests)
+4. Skopeo 1.0+ (If you use anything below 1.0 you might have issue with the newer manifests)
 
 Please note this only works with operators that meet the following criteria
 
@@ -37,46 +36,48 @@ For a full list of operators that work offline please see link below
 5. Update the offline-operator-list file with the operators you want to include in the catalog creation and mirroring. See <https://access.redhat.com/articles/4740011> for list of supported offline operators
 6. Run the script (sample command, see arguements section for more details)
 
-```Shell
-mirror-operator-catalogue.py \
---catalog-version 1.0.0 \
---authfile /run/user/0/containers/auth.json \
---registry-olm local_registry_url:5000 \
---registry-catalog local_registry_url:5000 \
---operator-file ./offline-operator-list \
---icsp-scope=namespace
-```
+    ```Shell
+    mirror-operator-catalogue.py \
+    --catalog-version 1.0.0 \
+    --authfile /run/user/0/containers/auth.json \
+    --registry-olm local_registry_url:5000 \
+    --registry-catalog local_registry_url:5000 \
+    --operator-file ./offline-operator-list \
+    --icsp-scope=namespace
+    ```
 
 7. Disable default operator source
-```Shell
-oc patch OperatorHub cluster --type json -p '[{"op": "add", "path": "/spec/disableAllDefaultSources", "value": true}]'
-```
+
+    ```Shell
+    oc patch OperatorHub cluster --type json \
+        -p '[{"op": "add", "path": "/spec/disableAllDefaultSources", "value": true}]''
+    ```
+
 8. Apply the yaml files in the publish folder. The image content source policy will create a new MCO render which will start a rolling reboot of your cluster nodes. You have to wait until that is complete before attempting to install operators from the catalogue
 
+### Script Arguments
 
-##### Script Arguements
-
-###### --catalog-version
+#### --catalog-version
 
 Arbitrary version number to tag your catalogue image. Unless you are interested in doing AB testing, keep the release version for all subsequent runs.
 
 
-###### --authfile
+##### --authfile
 
 The location of the auth.json file generated when you use podman or docker to login registries using podman. The auth file is located either in your home directory under .docker or /run/user/your_uid/containers/auth.json or /var/run/containers/your_uid/auth.json
 
 
-###### --registry-olm
+##### --registry-olm
 
 The URL of the destination registry where the operator images will be mirrored to
 
 
-###### --registry-catalog
+##### --registry-catalog
 
 The URL of the destination registry where the operator catalogue image will be published to
 
 
-###### --operator-file
+##### --operator-file
 
 Location of the file containing a list of operators to include in your custom catalogue. The entries should be in plain text with no quotes. Each line should only have one operator name. 
 
@@ -88,11 +89,11 @@ cluster-logging
 codeready-workspaces
 ```
 
-###### --icsp-scope
+##### --icsp-scope
 
 Scope of registry mirrors in imagecontentsourcepolicy file. Allowed values: namespace, registry. Defaults to: namespace
 
-###### --mirror-images
+##### --mirror-images
 
 This field is optional
 Default: True
@@ -101,7 +102,7 @@ If set to True all related images will be mirrored to the registry provided by t
 
 ## Updating The Catalogue
 
-To update the catalogue,run the script the same way you did the first time and increment the catalog-version. An updated Catalogue image will be created. Afterwards do an "oc apply -f rh-catalog-source.yaml" to update the catalogsource with the new image.
+To update the catalogue,run the script the same way you did the first time. As of OCP 4.6 you no longer have to increment the version of the catalog. The catalog will query for a newer version of the image used every 10 minutes (by default).
 
 ## Script Notes
 
@@ -111,22 +112,3 @@ Unfortunately just because an image is listed in the related images spec doesn't
 
 If you need a to create a local secured registry follow the instructions from the link below
 <https://docs.openshift.com/container-platform/4.3/installing/install_config/installing-restricted-networks-preparations.html#installing-restricted-networks-preparations>
-
-
-
-
-## New research
-
-opm index prune -p "prometheus" --from-index quay.io/operator-framework/example-index:1.0.0 --tag quay.io/operator-framework/example-index:1.0.1
-
-
-opm index prune \
-    -f registry.redhat.io/redhat/redhat-operator-index:v4.6 \
-    -p local-storage-operator,cluster-logging,kubevirt-hyperconverged \
-    -t t480-rh.local:5000/redhat/custom-redhat-operator-index:v4.6 
-
-podman push t480-rh.local:5000/redhat/custom-redhat-operator-index:v4.6 --tls-verify=false --authfile auth.json
-
-opm index export --index="t480-rh.local:5000/redhat/custom-redhat-operator-index:v4.6" --package="kubevirt-hyperconverged" -c="podman" --skip-tls -f ./kubevirt
-
-opm index export --index="t480-rh.local:5000/redhat/custom-redhat-operator-index:v4.6" --package="cluster-logging" -c="podman" --skip-tls -f ./cluster-logging 
