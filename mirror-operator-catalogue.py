@@ -170,7 +170,7 @@ def GetOpmCli():
   # We are using the 4.7 channel to extract opm because we need version 1.14+ of the opm tool
   cmd = "oc image extract " + temp_redhat_operators_catalog_image_url
   cmd += " -a " + args.authfile + " --path /usr/bin/opm:" + run_root_dir + " --confirm"
-  print(cmd)
+  # print(cmd)
   subprocess.run(cmd, shell=True, check=True)
 
   opm_cli = os.path.join(run_root_dir, "opm")
