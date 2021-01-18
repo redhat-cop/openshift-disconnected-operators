@@ -1,6 +1,6 @@
 # OpenShift Offline Operator Catalogue
 
-This script has been This script will create a custom operator catalogue based on the desired operators and mirror the images to a local registry.
+This script will create a custom operator catalogue based on the desired operators and mirror the images to a local registry.
 
 Why create this?
 
