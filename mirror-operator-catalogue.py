@@ -68,6 +68,7 @@ publish_root_dir = os.path.join(script_root_dir, args.output)
 run_root_dir = os.path.join(script_root_dir, "run")
 mirror_images = args.mirror_images
 operator_image_list = []
+operator_data_list = {}
 operator_known_bad_image_list_file = os.path.join(
     script_root_dir, "known-bad-images")
 quay_rh_base_url = "https://quay.io/cnr/api/v1/packages/"
@@ -110,7 +111,7 @@ def main():
   print("Getting opm CLI...")
   # oc_cli_path = GetOcCli(run_temp)
   opm_cli_path = GetOpmCli()
-
+  # opm_cli_path = os.path.join(run_root_dir, "opm")
   print("Getting the list of operators for custom catalogue..")
   operators = GetWhiteListedOperators()
 
@@ -122,6 +123,8 @@ def main():
   ExtractOperatorBundles(operators, opm_cli_path, run_temp)
 
   GetImageListToMirror(operators, run_temp)
+
+  GetBundleImageListToMirror(operators, run_temp)
 
   images = getImages()
   if mirror_images.lower() == "true":
@@ -165,6 +168,7 @@ def GetOcCli(run_temp):
 
   return os.path.join(run_root_dir, "oc")
 
+
 def GetOpmCli():
   
   # We are using the 4.7 channel to extract opm because we need version 1.14+ of the opm tool
@@ -196,6 +200,7 @@ def GetWhiteListedOperators():
     print(exc)
     sys.exit(1)
 
+
 def PruneCatalog(opm_cli_path, operators, run_temp):
   
   operator_list = ','.join(operators)
@@ -209,6 +214,7 @@ def PruneCatalog(opm_cli_path, operators, run_temp):
 
   cmd = "podman push " + custom_redhat_operators_catalog_image_url + " --tls-verify=false"
   subprocess.run(cmd, shell=True, check=True)
+
 
 def ExtractOperatorBundles(operators, opm_cli_path, run_temp):
 
@@ -224,12 +230,12 @@ def GetImageListToMirror(operators, run_temp):
 
   for operator in operators:
     operator_dir = os.path.join(run_temp, operator)
-    csv_yaml_list = GetOperatorCsvYaml(operator_dir)
+    csv_yaml_list = GetOperatorCsvYaml(operator_dir, operator)
     for csv_yaml in csv_yaml_list:
       ExtractRelatedImages(csv_yaml)
 
 
-def GetOperatorCsvYaml(operator_dir):
+def GetOperatorCsvYaml(operator_dir, operator):
   try:
     # Normally we would only have to deal with one channel, but for now the stable channel might differ from
     # default channel and we want both versions to be accessible.
@@ -253,19 +259,9 @@ def GetOperatorCsvYaml(operator_dir):
               operatorManifestPath, default_channel)
           with open(csvFilePath, 'r') as yamlFile:
             csv_yaml = yaml.safe_load(yamlFile)
+            operator_data_list[operator] = csv_yaml['spec']['version']
             csv_yaml_list.append(csv_yaml)
         
-
-      # Check for stable channel, yes this is ugly and probably could be more efficient, but its temporary.
-      for channel in packageYaml['channels']:
-        if channel['name'] == 'stable':
-          stable_channel = channel['currentCSV']
-          if default_channel != stable_channel:
-            csvFilePath = GetOperatorCsvPath(
-                operatorManifestPath, stable_channel)
-            with open(csvFilePath, 'r') as yamlFile:
-              csv_yaml = yaml.safe_load(yamlFile)
-              csv_yaml_list.append(csv_yaml)
     return csv_yaml_list
   except (yaml.YAMLError, IOError) as exc:
     print(exc)
@@ -295,6 +291,27 @@ def ExtractRelatedImages(operatorCsvYaml):
     for container in entry['spec']['template']['spec']['containers']:
       if('image' in container):
         setImages(container['image'])
+
+
+def GetBundleImageListToMirror(operators, run_temp):
+  
+  cmd = "oc image extract " + custom_redhat_operators_catalog_image_url
+  cmd += " -a " + args.authfile + " --path /database/index.db:" + run_root_dir + " --confirm --insecure"
+  subprocess.run(cmd, shell=True, check=True)
+
+  db_path = os.path.join(run_root_dir, "index.db")
+
+  for operator in operator_data_list:
+    cmd = "sqlite3 -line " + db_path + " \"select bundlepath from operatorbundle where name like '%" +  operator + "%' and version='" + operator_data_list[operator] + "';\""  
+
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
+    output = proc.communicate()
+
+    for line in output[0].splitlines():
+      imageUrl = str(line).strip()
+      if imageUrl and len(imageUrl) > 5:
+        imageUrl = imageUrl.split("=")[1].strip()
+        setImages(imageUrl)
 
 
 # Add image to a list of images to download
