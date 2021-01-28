@@ -60,10 +60,18 @@ parser.add_argument(
     "--mirror-images",
     default="True",
     help="Boolean: Mirror related images. Default is True")
+parser.add_argument(
+    "--run-dir",
+    default="",
+    help="Run directory for script, must be an absolute path, only handy if running script in a container")
 args = parser.parse_args()
 
 # Global Variables
-script_root_dir = os.path.dirname(os.path.realpath(__file__))
+if args.run_dir != "":
+  script_root_dir = args.run_dir
+else:
+  script_root_dir = os.path.dirname(os.path.realpath(__file__))
+
 publish_root_dir = os.path.join(script_root_dir, args.output)
 run_root_dir = os.path.join(script_root_dir, "run")
 mirror_images = args.mirror_images
@@ -310,7 +318,7 @@ def GetBundleImageListToMirror(operators, run_temp):
     for line in output[0].splitlines():
       imageUrl = str(line).strip()
       if imageUrl and len(imageUrl) > 5:
-        imageUrl = imageUrl.split("=")[1].strip()
+        imageUrl = imageUrl.split("=")[1].strip()[:-1]
         setImages(imageUrl)
 
 
