@@ -310,8 +310,8 @@ def GetBundleImageListToMirror(operators, run_temp):
   db_path = os.path.join(run_root_dir, "index.db")
 
   for operator in operator_data_list:
-    cmd = "sqlite3 -line " + db_path + " \"select bundlepath from operatorbundle where name like '%" +  operator + "%' and version='" + operator_data_list[operator] + "';\""  
-
+    cmd = "sqlite3 -line " + db_path + " \"select bundlepath from operatorbundle where (name like '%" +  operator + "%' or bundlepath like '%" +  operator + "%') and version='" + operator_data_list[operator] + "';\""  
+    print(cmd)
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
     output = proc.communicate()
 
