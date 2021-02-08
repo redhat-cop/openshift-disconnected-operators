@@ -64,6 +64,10 @@ parser.add_argument(
     "--run-dir",
     default="",
     help="Run directory for script, must be an absolute path, only handy if running script in a container")
+parser.add_argument(
+    "--opm-path",
+    default="",
+    help="Full path of the opm binary if you want to use your own instead of the tool downloading it for you")    
 args = parser.parse_args()
 
 # Global Variables
@@ -118,7 +122,11 @@ def main():
   print("Starting Catalog Build and Mirror...")
   print("Getting opm CLI...")
   # oc_cli_path = GetOcCli(run_temp)
-  opm_cli_path = GetOpmCli()
+
+  if args.opm_path != "":
+    opm_cli_path = args.opm_path
+  else:
+    opm_cli_path = GetOpmCli()
   # opm_cli_path = os.path.join(run_root_dir, "opm")
   print("Getting the list of operators for custom catalogue..")
   operators = GetWhiteListedOperators()
@@ -180,9 +188,8 @@ def GetOcCli(run_temp):
 def GetOpmCli():
   
   # We are using the 4.7 channel to extract opm because we need version 1.14+ of the opm tool
-  cmd = "oc image extract " + temp_redhat_operators_catalog_image_url
-  cmd += " -a " + args.authfile + " --path /usr/bin/opm:" + run_root_dir + " --confirm"
-  # print(cmd)
+  cmd = "podman run --rm --entrypoint cat " + temp_redhat_operators_catalog_image_url 
+  cmd += " /bin/registry/opm > " + run_root_dir + "/opm"
   subprocess.run(cmd, shell=True, check=True)
 
   opm_cli = os.path.join(run_root_dir, "opm")
