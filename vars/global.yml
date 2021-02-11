@@ -1,0 +1,74 @@
+---
+# Ansible Playbook Run Variables
+name_vendor: "RedHat"
+ansible_name: " {{ name_vendor }} |Infra Automation"
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+#openshift_client_binary: '/usr/bin/oc'
+openshift_client_binary: '/usr/local/bin/oc'
+opm_binary: '/usr/bin/opm'
+
+registry_host_fqdn: '{{ vault_registry_host_fqdn }}'
+registry_secret: '{{ vault_registry_secret }}'
+registry_admin_username: '{{ vault_registry_admin_username }}'
+registry_admin_password: '{{ vault_registry_admin_password }}'
+ocp_registry_pull_secret_file: '/data/repos/quay-pull-secret.json'
+registry_container_name: 'mirror-registry'
+registry_container_image: 'docker.io/library/registry:2'
+#registry_container_dir: '/data/registry'
+registry_container_dir: "/data/registry-arvin"
+#local_repository: 'openshift4/redhat-operators'
+local_repository: 'openshift4/custom-operators'
+
+process_operator_bundle: "true"
+install_opm: "false"
+opm_client_binary: "files/opm"
+install_grpcurl: "false"
+grpcurl_binary: "files/grpcurl_1.7.0_linux_x86_64.tar.gz"
+
+operator_registries_to_mirror:
+  redhat-operators:
+    source: 'registry.redhat.io/redhat/redhat-operator-index:v4.6'
+    container_port: '50051'
+    host_port: 50051
+    mirrored_operator_list: "3scale-operator,apicast-operator,amq-streams,businessautomation-operator,cluster-kube-descheduler-operator,cluster-logging,clusterresourceoverride,codeready-workspaces,compliance-operator,container-security-operator,elasticsearch-operator,file-integrity-operator,jaeger-product,kiali-ossm,kubevirt-hyperconverged,local-storage-operator,metering-ocp,nfd,ocs-operator,ptp-operator,rhsso-operator,serverless-operator,servicemeshoperator,sriov-network-operator"
+    mirror: "true"
+  community-operators:
+    source: 'registry.redhat.io/redhat/community-operator-index:latest'
+    container_port: 50051
+    host_port: 40051
+    mirrored_operator_list: "group-sync-operator,keycloak-operator,koku-metrics-operator,konveyor-forklift-operator,konveyor-operator,namespace-configuration-operator,prisma-cloud-compute-console-operator,prometheus,prometheus-exporter-operator,splunk"
+    mirror: "true"
+  market-operators:
+    source: 'registry.redhat.io/redhat/redhat-marketplace-index:v4.6'
+    container_port: 50051
+    host_port: 30051
+    mirrored_operator_list: ""
+    mirror: "false"
+  certified-operators:
+    source: 'registry.redhat.io/redhat/certified-operator-index:v4.6'
+    container_port: 50051
+    host_port: 20051
+    mirrored_operator_list: "anchore-engine,elasticsearch-eck-operator-certified,falco-certified,gitlab-operator,gitlab-runner-operator,gpu-operator-certified,nginx-ingress-operator,node-red-operator-certified,openshiftartifactoryha-operator,openshiftpipeline-operator,openshiftxray-operator,prisma-cloud-compute-console-operator.v2.0.1,redhat-marketplace-operator,rocketchat-operator-certified,splunk-certified"
+    mirror: "true"
+
+default_operator_registry: 'registry.redhat.io'
+default_operator_registry_username: '{{ vault_default_operator_registry_username }}'
+default_operator_registry_password: '{{ vault_default_operator_registry_password }}'
+
+dir_bundle_location: "/data/bundles/artifactory"
+bundle_file_name: 'operators-bundle.tar.xz'
+bundle_file_location: "/data/bundles/artifactory/operators-bundle.tar.xz"
+operator_bundle_file_name: "operators-bundle.tar.xz"
+dir_bundle_staging: "/data/staging"
+ocp_release_image_registry: "quay.io"
+ocp_release_image_repository: "openshift-release-dev/ocp-release"
+ocp_release_version: "4.6.4"
+ocp_release_arch: "x86_64"
+release_image_repository: "openshift-release-dev"
+operators_image_repository: 'redhat-operators'
+
+#####################################################################################################
+# End of user configurable variables
+#####################################################################################################
+
+

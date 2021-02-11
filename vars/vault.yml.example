@@ -1,0 +1,13 @@
+### use this template as sample to create your vault file by populating the following variables
+vault_registry_host_fqdn: ''
+vault_registry_secret: ''
+vault_registry_admin_username: ''
+vault_registry_admin_password: ''
+vauld_default_operator_registry_username: ''
+vault_default_operator_registry_password: ''
+
+### Variable for disconnected OLD Processing
+
+vault_ocp_cluster_user_user: ''
+vault_ocp_cluster_user_password: ''
+vault_ocp_cluster_console_url: ''
