@@ -38,6 +38,14 @@ parser.add_argument(
     "--operator-channel",
     default="4.6",
     help="Operator Channel. Default 4.6")
+parser.add_argument(
+    "--operator-image-name",
+    default="redhat-operators",
+    help="Operator Image short Name. Default redhat-operators")
+parser.add_argument(
+    "--operator-catalog-image-url",
+    default="registry.redhat.io/redhat/redhat-operator-index",
+    help="Operator Index Image URL without version. Default registry.redhat.io/redhat/redhat-operator-index")
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument(
     "--operator-list",
@@ -84,8 +92,8 @@ operator_data_list = {}
 operator_known_bad_image_list_file = os.path.join(
     script_root_dir, "known-bad-images")
 quay_rh_base_url = "https://quay.io/cnr/api/v1/packages/"
-redhat_operators_image_name = "redhat-operators"
-redhat_operators_packages_url = "https://quay.io/cnr/api/v1/packages?namespace=redhat-operators"
+redhat_operators_image_name = args.operator_image_name
+redhat_operators_packages_url = "https://quay.io/cnr/api/v1/packages?namespace=" + args.operator_image_name
 image_content_source_policy_template_file = os.path.join(
     script_root_dir, "image-content-source-template")
 catalog_source_template_file = os.path.join(
@@ -96,8 +104,8 @@ catalog_source_output_file = os.path.join(
     publish_root_dir, 'rh-catalog-source.yaml')
 mapping_file=os.path.join(
     publish_root_dir, 'mapping.txt')
-redhat_operators_catalog_image_url = "registry.redhat.io/redhat/redhat-operator-index:v" + args.operator_channel
-custom_redhat_operators_catalog_image_url = args.registry_catalog + "/custom-redhat-operator-index:v" + args.operator_channel
+redhat_operators_catalog_image_url = args.operator_catalog_image_url + ":v" + args.operator_channel
+custom_redhat_operators_catalog_image_url = args.registry_catalog + "/custom-" + args.operator_catalog_image_url.split('/')[2] +  ":v" + args.operator_channel
 
 # This will be removed once we hit 4.7 This is to get the latest version of opm cli
 temp_redhat_operators_catalog_image_url = "registry.redhat.io/redhat/redhat-operator-index:v4.7"
