@@ -5,8 +5,8 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
   vars_files:
-    - '../vars/vault.yml'
-    - '../vars/artifactory.yml'
+    - 'vars/vault.yml'
+    - 'vars/artifactory.yml'
   vars:
     module: "bundle-operators"
     ansible_name_module: "Mirror Operators for Disconnected OLM | {{ module }}"
