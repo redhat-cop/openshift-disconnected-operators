@@ -104,8 +104,9 @@ catalog_source_output_file = os.path.join(
     publish_root_dir, 'rh-catalog-source.yaml')
 mapping_file=os.path.join(
     publish_root_dir, 'mapping.txt')
-redhat_operators_catalog_image_url = args.operator_catalog_image_url + ":v" + args.operator_channel
-custom_redhat_operators_catalog_image_url = args.registry_catalog + "/custom-" + args.operator_catalog_image_url.split('/')[2] +  ":v" + args.operator_channel
+operator_index_version = ":v" + args.operator_channel if args.operator_channel.isnumeric() else ":" + args.operator_channel
+redhat_operators_catalog_image_url = args.operator_catalog_image_url + operator_index_version
+custom_redhat_operators_catalog_image_url = args.registry_catalog + "/custom-" + args.operator_catalog_image_url.split('/')[2] + operator_index_version
 
 # This will be removed once we hit 4.7 This is to get the latest version of opm cli
 temp_redhat_operators_catalog_image_url = "registry.redhat.io/redhat/redhat-operator-index:v4.7"
@@ -302,11 +303,13 @@ def GetOperatorCsvPath(search_path, search_string):
 
 # Write related images from an operator CSV YAML to a file for later processing
 def ExtractRelatedImages(operatorCsvYaml):
-  for entry in operatorCsvYaml['spec']['relatedImages']:
-    if('image' in entry):
-      setImages(entry['image'])
-    elif('value' in entry):
-      setImages(entry['value'])
+  for entry in operatorCsvYaml['spec']:
+    if('relatedImages'in entry):
+      for entry in operatorCsvYaml['spec']['relatedImages']:
+        if('image' in entry):
+          setImages(entry['image'])
+        elif('value' in entry):
+          setImages(entry['value'])
 
   # Some operators don't have every image they need in the related images field
   # We have to query the deployments spec to get the missing image(s)
