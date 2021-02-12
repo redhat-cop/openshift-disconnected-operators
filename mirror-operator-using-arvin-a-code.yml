@@ -47,7 +47,7 @@
 
     - name: '{{ ansible_name_module }} | copy | copy content template files to staging location '
       copy:
-        src: files/{{ item }}
+        src: {{ item }}
         dest: "{{ dir_bundle_staging }}/{{ item | basename }}"
         force: yes
         mode: 0644
