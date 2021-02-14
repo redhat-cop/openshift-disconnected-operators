@@ -1,5 +1,5 @@
 #!/usr/local/bin/ansible-playbook --inventory=inventory
-- name: 'Mirror Operators for Disconnected OLM | push-operators-from-arvin-code-to-artifactory.yml' 
+- name: 'Mirror Operators for Disconnected OLM | push-operators-to-artifactory.yml' 
   hosts: localhost 
   become: yes
   vars:
@@ -89,30 +89,47 @@
 
     - name: '{{ ansible_name_module }} | Process repositories'
       block:
-        - name: '{{ ansible_name_module }} | curl | _catalog?n=2000 '
+        - name: '{{ ansible_name_module }} | shell:curl | fetch all repositories _catalog?n=2000 '
           shell: >
-            curl -v http://localhost:5000/v2/_catalog?n=2000 | jq .repositories | grep -i custom
+            curl -v http://localhost:5000/v2/_catalog?n=2000 | jq .repositories
           register: registry_repositories
-    
-        - name: '{{ ansible_name_module }} | debug | print repositories '
-          debug:
-            var: registry_repositories
 
-        - name: '{{ ansible_name_module }} | debug | print repositories '
-          debug:
-            var: item.replace(',', '').replace('"','').replace(' ','') 
+        - name: '{{ ansible_name_module }} | set_fact | set trimmed repo facts '
+          set_fact:
+            trim_repos: "{{ (registry_repositories.stdout_lines | replace('[', '') | replace(']', '') | replace('\"', '') | replace(',', '') | replace('  ', '')).split(' ') }}"
+
+        - name: '{{ ansible_name_module }} | shell:curl | get tags/list for all repos'
+          shell: >
+            curl -v http://localhost:5000/v2/{{ item.replace(',', '').replace('"','').replace(' ','') }}/tags/list | jq .
+          ignore_errors: yes
+          args:
+            warn: false
           with_items:
-            - "{{ registry_repositories.stdout_lines }}"
+            - "{{ trim_repos }}"
+          when:
+            - item != "''"
+          register: registry_tags
+
+        - name: '{{ ansible_name_module }} | collect valid tag list from output'
+          set_fact:
+            valid_tags: "{{ valid_tags |d([])| combine({ item.item: item.stdout }) }}"
+          when:
+            - item.stdout is defined
+            - "'NAME_UNKNOWN' not in item.stdout"
+            - "'tags' in item.stdout"
+          loop: "{{ registry_tags.results }}"
+          register: valid_tag_out
+
 
     - name: '{{ ansible_name_module }} | command:{{ openshift_client_binary }} images | load images to registry '
       command: >
         {{ openshift_client_binary }} image mirror \
            -a {{ registry_auth_config }} \
-            localhost:5000/{{ item.replace(',', '').replace('"','').replace(' ','') }}:* \
-           {{ registry_host_fqdn }}/{{ local_repository }}/{{ item.replace(',', '').replace('"','').replace(' ','') }} \
+            localhost:5000/{{ item.replace("'", '') }}:* \
+           {{ registry_host_fqdn }}/{{ local_repository }}/{{ item.replace("'", '') }} \
            --insecure=true --loglevel=8 --filter-by-os=/*
       with_items:
-        - "{{ registry_repositories.stdout_lines }}"
+        - "{{ valid_tags | list }}"
       when:
         - reg_authfile_created is defined
       register: registry_loaded
