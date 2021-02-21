@@ -80,14 +80,26 @@ The URL of the destination registry where the operator catalogue image will be p
 
 ##### --operator-file
 
-Location of the file containing a list of operators to include in your custom catalogue. The entries should be in plain text with no quotes. Each line should only have one operator name. 
+Location of the file containing a list of operators to include in your custom catalogue. The entries should be in plain text with no quotes. Each line should only have one operator name. If this arguement is used, --operator-list should not be used
 
-Example:
+Example operator list file content:
 
 ```Shell
 local-storage-operator
 cluster-logging
 codeready-workspaces
+```
+
+##### --operator-list
+
+List of operators to include in your custom catalogue. If this arguement is used, --operator-file arguement should not be used.
+
+The entires should be seperated by spaces
+
+Example:
+
+```Shell
+--operator-list kubevirt-hyperconverged local-storage-operator
 ```
 
 ##### --icsp-scope
