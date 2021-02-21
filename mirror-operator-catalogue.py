@@ -58,7 +58,7 @@ group.add_argument(
     "--operator-list",
     nargs="*",
     metavar="OPERATOR",
-    help="List of operators to mirror")
+    help="List of operators to mirror, space delimeted")
 group.add_argument(
     "--operator-file",
     metavar="FILE",
