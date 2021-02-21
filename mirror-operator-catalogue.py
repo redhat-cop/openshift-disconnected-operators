@@ -14,6 +14,13 @@ import urllib.request
 from jinja2 import Template
 from pathlib import Path
 
+def is_number(string):
+  try:
+      float(string)
+      return True
+  except ValueError:
+      return False
+
 parser = argparse.ArgumentParser(
     description='Mirror individual operators to an offline registry')
 parser.add_argument(
@@ -104,7 +111,7 @@ catalog_source_output_file = os.path.join(
     publish_root_dir, 'rh-catalog-source.yaml')
 mapping_file=os.path.join(
     publish_root_dir, 'mapping.txt')
-operator_index_version = ":v" + args.operator_channel if args.operator_channel.isnumeric() else ":" + args.operator_channel
+operator_index_version = ":v" + args.operator_channel if is_number(args.operator_channel) else ":" + args.operator_channel
 redhat_operators_catalog_image_url = args.operator_catalog_image_url + operator_index_version
 custom_redhat_operators_catalog_image_url = args.registry_catalog + "/custom-" + args.operator_catalog_image_url.split('/')[2] + operator_index_version
 
