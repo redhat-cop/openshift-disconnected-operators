@@ -19,6 +19,7 @@ This tool was tested with the following versions of the runtime and utilities.
 3. Podman v2.0+ (If you use anything below 1.8, you might run into issues with multi-arch manifests)
 4. Skopeo 1.0+ (If you use anything below 1.0 you might have issue with the newer manifests)
 5. Oc CLI 4.6.9+
+6. sqlite3
 
 Please note this only works with operators that meet the following criteria
 
