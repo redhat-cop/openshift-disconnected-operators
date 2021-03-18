@@ -8,7 +8,7 @@ Because the current [catalogue build and mirror](https://docs.openshift.com/cont
 
 ## Note
 
-This script has been update for OpenShift 4.6+. Please use the script in the ocp4.5 branch  for earlier OCP releases 4.5 and earlier
+This script has been update for OpenShift 4.6+. Please use the script in the ocp4.5 branch for releases 4.5 and earlier.
 
 ## Requirements
 
