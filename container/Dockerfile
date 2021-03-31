@@ -53,16 +53,12 @@ RUN \
     && dnf install -y skopeo \
     && dnf clean all 
 
-
-
-
-
-COPY entrypoint.sh ./
-COPY ../mirror-operator-catalogue.py ./
-COPY bundle.sh ./
-COPY ../catalog-source-template ./
-COPY ../image-content-source-template ./
-COPY ../known-bad-images ./
-COPY offline-operator-list ./
+COPY ./container/entrypoint.sh ./
+COPY ./mirror-operator-catalogue.py ./
+COPY ./container/bundle.sh ./
+COPY ./catalog-source-template ./
+COPY ./image-content-source-template ./
+COPY ./known-bad-images ./
+COPY ./container/offline-operator-list ./
 
 ENTRYPOINT ["/entrypoint.sh"]
