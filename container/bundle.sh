@@ -73,18 +73,21 @@ __startRegistry
 # Run the mirroring script
 __mirror $AUTH_FILE
 
-# Stop the registry
-__stopRegistry
+if [ $? -eq 0 ]; then
+  # Stop the registry
+  __stopRegistry
 
-# Consolidate
-__consolidate
+  # Consolidate
+  __consolidate
 
-# Compress
-tar -czvf ${BUNDLE_NAME} ${BUNDLE_DIR}
+  # Compress
+  tar -czvf ${BUNDLE_NAME} ${BUNDLE_DIR}
 
-
-# Export
-mv ${BUNDLE_NAME} ${HOST_DIR}
+  # Export
+  mv ${BUNDLE_NAME} ${HOST_DIR}
+else
+  echo "Operator Mirror failed. Luckily this script was run in debug, so the cause should be easy to determine."
+fi
 
 }
 

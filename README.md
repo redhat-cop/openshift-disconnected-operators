@@ -139,6 +139,10 @@ To use the convenience script (from inside the container):
 Note1: Make sure to include the single quotes in the above command
 Note2: Pull secret can be obtained from https://cloud.redhat.com/openshift/install/aws/installer-provisioned
 
+If you just want the Compliance Operator and associated resources:
+```
+./container/container-launch.sh ./bundle.sh '<< Pull Secret>>'
+```
 
 ## Local Docker Registry
 
