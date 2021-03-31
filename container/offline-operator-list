@@ -1,0 +1,9 @@
+kiali-ossm
+ocs-operator
+quay-operator
+jaeger-product
+rhsso-operator
+cluster-logging
+servicemeshoperator
+compliance-operator
+elasticsearch-operator

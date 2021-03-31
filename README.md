@@ -122,6 +122,24 @@ To update the catalogue,run the script the same way you did the first time. As o
 
 Unfortunately just because an image is listed in the related images spec doesn't mean it exists or is even used by the operator. for example registry.redhat.io/openshift4/ose-promtail from the logging operator. I have put that image in the knownBadImages file to avoid attempting to mirror. Other images will be added as I find them.
 
+## Convenience Container
+
+The convenience container already has all dependencies needed to run the mirror-operator-catalogue.py script. Additionally, the container includes a convenience script that will export a registry v2 compressed tar archive to the host device running the container.
+
+To launch the container:
+```
+chmod +x container-launch.sh
+./container-launch.sh
+```
+
+To use the convenience script (from inside the container):
+```
+./bundle.sh '<< Pull Secret >>'
+```
+Note1: Make sure to include the single quotes in the above command
+Note2: Pull secret can be obtained from https://cloud.redhat.com/openshift/install/aws/installer-provisioned
+
+
 ## Local Docker Registry
 
 If you need a to create a local secured registry follow the instructions from the link below
