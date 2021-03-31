@@ -82,7 +82,11 @@ parser.add_argument(
 parser.add_argument(
     "--opm-path",
     default="",
-    help="Full path of the opm binary if you want to use your own instead of the tool downloading it for you")    
+    help="Full path of the opm binary if you want to use your own instead of the tool downloading it for you")
+parser.add_argument(
+    "--oc-cli-path",
+    default="oc",
+    help="Full path of oc cli")    
 args = parser.parse_args()
 
 # Global Variables
@@ -114,7 +118,7 @@ mapping_file=os.path.join(
 operator_index_version = ":v" + args.operator_channel if is_number(args.operator_channel) else ":" + args.operator_channel
 redhat_operators_catalog_image_url = args.operator_catalog_image_url + operator_index_version
 custom_redhat_operators_catalog_image_url = args.registry_catalog + "/custom-" + args.operator_catalog_image_url.split('/')[2] + operator_index_version
-
+oc_cli_path=args.oc_cli_path
 # This will be removed once we hit 4.7 This is to get the latest version of opm cli
 temp_redhat_operators_catalog_image_url = "registry.redhat.io/redhat/redhat-operator-index:v4.7"
 
@@ -137,17 +141,15 @@ def main():
 
   print("Starting Catalog Build and Mirror...")
   print("Getting opm CLI...")
-  # oc_cli_path = GetOcCli(run_temp)
 
   if args.opm_path != "":
     opm_cli_path = args.opm_path
   else:
     opm_cli_path = GetOpmCli()
-  # opm_cli_path = os.path.join(run_root_dir, "opm")
   print("Getting the list of operators for custom catalogue..")
   operators = GetWhiteListedOperators()
 
-  # # NEED TO BE LOGGED IN TO REGISTRY.REDHAT.IO WITHOUT AUTHFILE ARGUEMENT
+  # # NEED TO BE LOGGED IN TO REGISTRY.REDHAT.IO WITHOUT AUTHFILE ARGUMENT
   print("Pruning OLM catalogue...")
   PruneCatalog(opm_cli_path, operators, run_temp)
 
@@ -328,7 +330,7 @@ def ExtractRelatedImages(operatorCsvYaml):
 
 def GetBundleImageListToMirror(operators, run_temp):
   
-  cmd = "oc image extract " + custom_redhat_operators_catalog_image_url
+  cmd = oc_cli_path + " image extract " + custom_redhat_operators_catalog_image_url
   cmd += " -a " + args.authfile + " --path /database/index.db:" + run_root_dir + " --confirm --insecure"
   subprocess.run(cmd, shell=True, check=True)
 
