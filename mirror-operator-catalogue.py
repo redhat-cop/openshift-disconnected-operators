@@ -86,7 +86,16 @@ parser.add_argument(
 parser.add_argument(
     "--oc-cli-path",
     default="oc",
-    help="Full path of oc cli")    
+    help="Full path of oc cli")
+parser.add_argument(
+    "--custom-operator-catalog-image-url",
+    default="",
+    help="custom operator catalog image url in your registry")
+parser.add_argument(
+    "--custom-operator-catalog-name",
+    default="custom-redhat-operators",
+    help="custom operator catalog name")
+
 args = parser.parse_args()
 
 # Global Variables
@@ -121,6 +130,9 @@ custom_redhat_operators_catalog_image_url = args.registry_catalog + "/custom-" +
 oc_cli_path=args.oc_cli_path
 # This will be removed once we hit 4.7 This is to get the latest version of opm cli
 temp_redhat_operators_catalog_image_url = "registry.redhat.io/redhat/redhat-operator-index:v4.7"
+
+if args.custom_operator_catalog_image_url:
+  custom_redhat_operators_catalog_image_url = args.registry_catalog + "/" + args.custom_operator_catalog_image_url + operator_index_version
 
 
 def main():
@@ -486,7 +498,7 @@ def GetSourceToMirrorMapping(images):
 def CreateCatalogSourceYaml(image_url):
   with open(catalog_source_template_file, 'r') as f:
     templateFile = Template(f.read())
-  content = templateFile.render(CatalogSource=image_url)
+  content = templateFile.render(CatalogSource=image_url,CatalogName=args.custom_operator_catalog_name)
   with open(catalog_source_output_file, "w") as f:
     f.write(content)
 
