@@ -123,7 +123,7 @@ ocp_version = args.ocp_version
 operator_channel = args.operator_channel
 operator_index_version = ":v" + operator_channel if is_number(operator_channel) else ":" + operator_channel
 redhat_operators_catalog_image_url = args.operator_catalog_image_url + operator_index_version
-custom_redhat_operators_catalog_image_url = args.registry_catalog + "/custom-" + args.operator_catalog_image_url.split('/')[2] + operator_index_version
+custom_redhat_operators_catalog_image_url = args.registry_catalog + "/custom-" + args.operator_catalog_image_url.split('/')[2] + ":" + args.catalog_version
 oc_cli_path=args.oc_cli_path
 # This will be removed once we hit 4.7 This is to get the latest version of opm cli
 temp_redhat_operators_catalog_image_url = "registry.redhat.io/redhat/redhat-operator-index:v4.7"
