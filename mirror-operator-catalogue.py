@@ -42,6 +42,10 @@ parser.add_argument(
     default="1.0.0",
     help="Tag for the catalog image")
 parser.add_argument(
+    "--ocp-version",
+    default="4.6",
+    help="OpenShift Y Stream. Only use X.Y version do not use Z. Default 4.6")
+parser.add_argument(
     "--operator-channel",
     default="4.6",
     help="Operator Channel. Default 4.6")
@@ -115,7 +119,9 @@ catalog_source_output_file = os.path.join(
     publish_root_dir, 'rh-catalog-source.yaml')
 mapping_file=os.path.join(
     publish_root_dir, 'mapping.txt')
-operator_index_version = ":v" + args.operator_channel if is_number(args.operator_channel) else ":" + args.operator_channel
+ocp_version = args.ocp_version
+operator_channel = args.operator_channel
+operator_index_version = ":v" + operator_channel if is_number(operator_channel) else ":" + operator_channel
 redhat_operators_catalog_image_url = args.operator_catalog_image_url + operator_index_version
 custom_redhat_operators_catalog_image_url = args.registry_catalog + "/custom-" + args.operator_catalog_image_url.split('/')[2] + operator_index_version
 oc_cli_path=args.oc_cli_path
@@ -145,7 +151,7 @@ def main():
   if args.opm_path != "":
     opm_cli_path = args.opm_path
   else:
-    opm_cli_path = GetOpmCli()
+    opm_cli_path = GetOpmCli(run_temp)
   print("Getting the list of operators for custom catalogue..")
   operators = GetWhiteListedOperators()
 
@@ -187,9 +193,8 @@ def main():
 def GetOcCli(run_temp):
   base_url = "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
   archive_name = "openshift-client-linux.tar.gz"
-  ocp_bin_version = "4.6"
   ocp_bin_channel = "fast"
-  ocp_bin_release_url= base_url + ocp_bin_channel + "-" + ocp_bin_version + "/" + archive_name
+  ocp_bin_release_url= base_url + ocp_bin_channel + "-" + ocp_version + "/" + archive_name
   print(ocp_bin_release_url)
   archive_file_path = os.path.join(run_temp, archive_name)
 
@@ -203,18 +208,23 @@ def GetOcCli(run_temp):
   return os.path.join(run_root_dir, "oc")
 
 
-def GetOpmCli():
+def GetOpmCli(run_temp):
   
-  # We are using the 4.7 channel to extract opm because we need version 1.14+ of the opm tool
-  cmd = "podman run --rm --entrypoint cat " + temp_redhat_operators_catalog_image_url 
-  cmd += " /bin/registry/opm > " + run_root_dir + "/opm"
-  subprocess.run(cmd, shell=True, check=True)
+  base_url = "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
+  archive_name = "opm-linux.tar.gz"
+  channel = "fast"
+  opm_bin_release_url = base_url + channel + "-" + ocp_version + "/" + archive_name
+  print(opm_bin_release_url)
+  archive_file_path = os.path.join(run_temp, archive_name)
 
-  opm_cli = os.path.join(run_root_dir, "opm")
-  cmd = "chmod +x " + opm_cli
-  subprocess.run(cmd, shell=True, check=True)
+  print("Downloading opm Cli...")
+  urllib.request.urlretrieve(opm_bin_release_url, archive_file_path)
 
-  return opm_cli
+  print("Extracting oc Cli...")
+  tf = tarfile.open(archive_file_path)
+  tf.extractall(run_root_dir)
+
+  return os.path.join(run_root_dir, "opm")
 
 
 def GetWhiteListedOperators():
@@ -245,7 +255,7 @@ def PruneCatalog(opm_cli_path, operators, run_temp):
   subprocess.run(cmd, shell=True, check=True)
   os.chdir(script_root_dir)
 
-  cmd = "podman push " + custom_redhat_operators_catalog_image_url + " --tls-verify=false"
+  cmd = "podman push " + custom_redhat_operators_catalog_image_url + " --tls-verify=false --authfile " + args.authfile
   subprocess.run(cmd, shell=True, check=True)
 
 
