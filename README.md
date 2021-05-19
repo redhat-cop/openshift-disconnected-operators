@@ -59,29 +59,64 @@ For a full list of operators that work offline please see link below
 
 ### Script Arguments
 
-#### --catalog-version
-
-Arbitrary version number to tag your catalogue image. Unless you are interested in doing AB testing, keep the release version for all subsequent runs.
-
-
 ##### --authfile
+
+Optional:
 
 The location of the auth.json file generated when you use podman or docker to login registries using podman. The auth file is located either in your home directory under .docker or /run/user/your_uid/containers/auth.json or /var/run/containers/your_uid/auth.json
 
-
 ##### --registry-olm
+
+Required:
 
 The URL of the destination registry where the operator images will be mirrored to
 
-
 ##### --registry-catalog
+
+Required:
 
 The URL of the destination registry where the operator catalogue image will be published to
 
+##### --catalog-version
+
+Optional:
+Default: "1.0.0"
+
+Arbitrary version number to tag your catalogue image. Unless you are interested in doing AB testing, keep the release version for all subsequent runs.
+
+##### --ocp-version
+
+Optional:
+Default:4.6
+
+The Version of OCP that will be used to download the OPM CLI
+
+##### --operator-channel
+
+Optional:
+Default:4.6
+
+The Operator Channel to create the custom catalogue from
+
+##### --operator-list
+
+Required if --operator-file not set
+
+List of operators to include in your custom catalogue. If this argument is used, --operator-file argument should not be used.
+
+The entires should be separated by spaces
+
+Example:
+
+```Shell
+--operator-list kubevirt-hyperconverged local-storage-operator
+```
 
 ##### --operator-file
 
-Location of the file containing a list of operators to include in your custom catalogue. The entries should be in plain text with no quotes. Each line should only have one operator name. If this arguement is used, --operator-list should not be used
+Required if --operator-list not set
+
+Location of the file containing a list of operators to include in your custom catalogue. The entries should be in plain text with no quotes. Each line should only have one operator name. If this argument is used, --operator-list should not be used
 
 Example operator list file content:
 
@@ -91,28 +126,19 @@ cluster-logging
 codeready-workspaces
 ```
 
-##### --operator-list
-
-List of operators to include in your custom catalogue. If this arguement is used, --operator-file arguement should not be used.
-
-The entires should be seperated by spaces
-
-Example:
-
-```Shell
---operator-list kubevirt-hyperconverged local-storage-operator
-```
-
 ##### --icsp-scope
+
+Optional:
+Default: namespace
 
 Scope of registry mirrors in imagecontentsourcepolicy file. Allowed values: namespace, registry. Defaults to: namespace
 
 ##### --mirror-images
 
-This field is optional
+Optional
 Default: True
 
-If set to True all related images will be mirrored to the registry provided by the --registry-olm arguement. Otherwise images will not be mirrored. Set to false if you are using a registry proxy and don't need to mirror images locally.
+If set to True all related images will be mirrored to the registry provided by the --registry-olm argument. Otherwise images will not be mirrored. Set to false if you are using a registry proxy and don't need to mirror images locally.
 
 ## Updating The Catalogue
 
