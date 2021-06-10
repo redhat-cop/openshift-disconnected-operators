@@ -16,6 +16,7 @@ This tool was tested with the following versions of the runtime and utilities.
 
 1. RHEL 8.2, Fedora 33 (For OPM tool RHEL 8 or Fedora equivalent is a hard requirement due to dependency on glibc version 2.28+)
 2. Python 3.7.6 (with pyyaml,jinja2 library)
+    a. pip install --requirement requirements.txt
 3. Podman v2.0+ (If you use anything below 1.8, you might run into issues with multi-arch manifests)
 4. Skopeo 1.0+ (If you use anything below 1.0 you might have issue with the newer manifests)
 5. Oc CLI 4.6.9+
@@ -151,4 +152,4 @@ Unfortunately just because an image is listed in the related images spec doesn't
 ## Local Docker Registry
 
 If you need a to create a local secured registry follow the instructions from the link below
-<https://docs.openshift.com/container-platform/4.3/installing/install_config/installing-restricted-networks-preparations.html#installing-restricted-networks-preparations>
+<https://docs.openshift.com/container-platform/4.2/installing/install_config/installing-restricted-networks-preparations.html#installing-restricted-networks-preparations>

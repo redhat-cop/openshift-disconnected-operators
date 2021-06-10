@@ -1,0 +1,7 @@
+operators:
+  - name: kubevirt-hyperconverged
+    start_version: 2.5.5
+  - name: local-storage-operator
+  - name: cluster-logging
+  - name: codeready-workspaces
+    start_version: 2.7.0
