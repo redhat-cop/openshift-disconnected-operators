@@ -284,13 +284,13 @@ def CreateSummaryFile(operators, mirror_summary_path):
     for operator in operators:
       f.write(operator.name + '\n')
       f.write("Upgrade Path: ")
-      upgrade_path = ""
+      upgrade_path = operator.start_version + " -> "
       for version in operator.upgrade_path:
         upgrade_path += version + " -> "
       upgrade_path = upgrade_path[:-4]
       f.write(upgrade_path)
-      f.write("\n")
-      ("============================================================\n \n")
+      f.write("\n") 
+      f.write("============================================================\n \n")
       for bundle in operator.operator_bundles:
         f.write("[Version: " + bundle.version + "]\n")
         f.write("Image List \n")
