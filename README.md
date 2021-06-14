@@ -1,6 +1,13 @@
 # OpenShift Offline Operator Catalogue
 
-This script will create a custom operator catalogue based on the desired operators and mirror the images to a local registry.
+This script will:
+
+- Create a custom operator catalogue based on the desired operators
+- Mirror the required images to a local registry.
+- (NEW) Optionally it can figure out the upgrade path to the latest version of an operator and mirror those images as well
+- Generate ImageContentSourcePolicy YAML
+- Genetate CatalogSource YAML
+
 
 Why create this?
 
@@ -8,7 +15,7 @@ Because the current [catalogue build and mirror](https://docs.openshift.com/cont
 
 ## Note
 
-This script has been update for OpenShift 4.6+. Please use the script in the ocp4.5 branch for releases 4.5 and earlier.
+This script has been updated for OpenShift 4.6+. Please use the script in the ocp4.5 branch for releases 4.5 and earlier.
 
 ## Requirements
 
@@ -16,10 +23,10 @@ This tool was tested with the following versions of the runtime and utilities.
 
 1. RHEL 8.2, Fedora 33 (For OPM tool RHEL 8 or Fedora equivalent is a hard requirement due to dependency on glibc version 2.28+)
 2. Python 3.7.6 (with pyyaml,jinja2 library)
+    a. pip install --requirement requirements.txt
 3. Podman v2.0+ (If you use anything below 1.8, you might run into issues with multi-arch manifests)
 4. Skopeo 1.0+ (If you use anything below 1.0 you might have issue with the newer manifests)
 5. Oc CLI 4.6.9+
-6. sqlite3
 
 Please note this only works with operators that meet the following criteria
 
@@ -100,7 +107,7 @@ The Operator Channel to create the custom catalogue from
 
 ##### --operator-list
 
-Required if --operator-file not set
+Required if --operator-file and --operator-yaml-file not set
 
 List of operators to include in your custom catalogue. If this argument is used, --operator-file argument should not be used.
 
@@ -114,7 +121,7 @@ Example:
 
 ##### --operator-file
 
-Required if --operator-list not set
+Required if --operator-list or --operator-yaml-file not set
 
 Location of the file containing a list of operators to include in your custom catalogue. The entries should be in plain text with no quotes. Each line should only have one operator name. If this argument is used, --operator-list should not be used
 
@@ -124,6 +131,28 @@ Example operator list file content:
 local-storage-operator
 cluster-logging
 codeready-workspaces
+```
+
+##### --operator-yaml-file
+
+Required if --operator-list or --operator-file not set
+
+Location of the file containing a list of operators to include in your custom catalogue. Each entry includes a "name" property and an optional "start_version". If the start_version property is not set, only the latest version of the operator in the default channel will be mirroed. If the parameter is set, the automation figure out the shortest upgrade path to the latest version and mirror the images from those versions as well. At the end of the run you can check the file called mirror_log.txt in the publish directory to see the upgrade path required for each operator. 
+
+Example operator list file content:
+
+```yaml
+operators:
+  - name: kubevirt-hyperconverged
+    start_version: 2.5.5
+  - name: local-storage-operator
+  - name: cluster-logging
+  - name: jaeger-product
+    start_version: 1.17.8 
+  - name: kiali-ossm
+  - name: codeready-workspaces
+    start_version: 2.7.0
+
 ```
 
 ##### --icsp-scope
@@ -151,4 +180,4 @@ Unfortunately just because an image is listed in the related images spec doesn't
 ## Local Docker Registry
 
 If you need a to create a local secured registry follow the instructions from the link below
-<https://docs.openshift.com/container-platform/4.3/installing/install_config/installing-restricted-networks-preparations.html#installing-restricted-networks-preparations>
+<https://docs.openshift.com/container-platform/4.2/installing/install_config/installing-restricted-networks-preparations.html#installing-restricted-networks-preparations>

@@ -6,3 +6,7 @@ index*
 opm
 new-mirror.sh
 auth.json
+__pycache__
+launch*
+test.py
+notes.txt
