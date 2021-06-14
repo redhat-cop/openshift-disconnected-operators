@@ -42,7 +42,7 @@ For a full list of operators that work offline please see link below
 2. Login to your offline registry using podman (This is the registry where you will be publishing the catalogue and related images)
 3. Login to registry.redhat.io using podman
 4. Login to quay.io using podman
-5. Update the offline-operator-list file with the operators you want to include in the catalog creation and mirroring. See <https://access.redhat.com/articles/4740011> for list of supported offline operators
+5. Update the offline_operator_list.yaml file with the operators you want to include in the catalog creation and mirroring. See <https://access.redhat.com/articles/4740011> for list of supported offline operators
 6. Run the script (sample command, see arguements section for more details)
 
     ```Shell
