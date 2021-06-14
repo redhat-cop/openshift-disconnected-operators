@@ -343,18 +343,6 @@ def GetImageListToMirror(operators, db_path):
 
       if len(result) == 1:
         bundle_name = result[0][0]
-      #   index = bundle_name.find(".")
-      #   bundle_name = bundle_name[:index]
-
-      # # Get version bundle name
-      # cmd = "select name from operatorbundle where (name like '%" + bundle_name + "%' and version like '%" + version + "%');"
-
-      # result = cur.execute(cmd).fetchall()
-      # if len(result) >= 1:
-      #   bundle_name = result[0][0]
-      # else:
-      #   print("No bundle for for version " + version)
-      #   continue
 
       bundle = OperatorBundle(bundle_name, version)
       

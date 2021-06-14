@@ -137,7 +137,7 @@ codeready-workspaces
 
 Required if --operator-list or --operator-file not set
 
-Location of the file containing a list of operators to include in your custom catalogue. Each entry includes a "name" property and an optional "start_version". If the start_version property is not set, only the latest version of the operator in the default channel will be mirroed. If the parameter is set, the automation figure out the shortest upgrade path to the latest version and mirror the images from those versions as well. At the end of the run you can check the file called mirror_log.txt in the publish directory to see the upgrade path required for each operator. 
+Location of the file containing a list of operators to include in your custom catalogue. Each entry includes a "name" property and an optional "start_version". If the start_version property is not set, only the latest version of the operator in the default channel will be mirroed. If the parameter is set, the automation figures out the shortest upgrade path to the latest version and mirrors the images from those versions as well. At the end of the run you can check the file called mirror_log.txt in the publish directory to see the upgrade path required for each operator. For the version only include the X.Y.Z digits. Even though there is some sanitization of the version number, the matching is easier and more accurate if this convention is followed.
 
 Example operator list file content:
 
@@ -152,7 +152,6 @@ operators:
   - name: kiali-ossm
   - name: codeready-workspaces
     start_version: 2.7.0
-
 ```
 
 ##### --icsp-scope
