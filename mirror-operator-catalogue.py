@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
 import os
 import sys
-import glob
 import re
-import json
 import tarfile
-import shutil
 import yaml
 import subprocess
-import tempfile
 import argparse
 import urllib.request
 from jinja2 import Template
@@ -143,34 +139,24 @@ ocp_version = args.ocp_version
 operator_channel = args.operator_channel
 operator_index_version = ":v" + operator_channel if is_number(operator_channel) else ":" + operator_channel
 redhat_operators_catalog_image_url = args.operator_catalog_image_url + operator_index_version
-custom_redhat_operators_catalog_image_url = args.registry_catalog + "/custom-" + args.operator_catalog_image_url.split('/')[2] + ":" + args.catalog_version
 oc_cli_path = args.oc_cli_path
 
 if args.custom_operator_catalog_image_url:
-  custom_redhat_operators_catalog_image_url = args.registry_catalog + "/" + args.custom_operator_catalog_image_url + operator_index_version
-
+  custom_redhat_operators_catalog_image_url = args.registry_catalog + "/" + args.custom_operator_catalog_image_url + ":" +  args.catalog_version
+elif args.custom_operator_catalog_name:
+  custom_redhat_operators_catalog_image_url =  args.registry_catalog + "/" + args.custom_operator_catalog_name + ":" +  args.catalog_version
+else:
+  custom_redhat_operators_catalog_image_url = args.registry_catalog + "/custom-" + args.operator_catalog_image_url.split('/')[2] + ":" + args.catalog_version
+  
 
 def main():
   run_temp = os.path.join(run_root_dir, "temp")
-  publishpath = Path(publish_root_dir)
-  run_path = Path(run_root_dir)
-  temp_path = Path(run_temp)
-  image_manifest_path = Path(image_manifest_file)
   mirror_summary_path = Path(mirror_summary_file)
 
   # Create publish, run and temp paths
-  if publishpath.exists():
-    shutil.rmtree(publishpath)
-  os.mkdir(publishpath)
-
-  if run_path.exists():
-    shutil.rmtree(run_path)
-  os.mkdir(run_path)
-  
-  if temp_path.exists():
-    shutil.rmtree(temp_path)
-  os.mkdir(temp_path)
-
+  RecreatePath(publish_root_dir)
+  RecreatePath(run_root_dir)
+  RecreatePath(run_temp)
 
   print("Starting Catalog Build and Mirror...")
   print("Getting opm CLI...")
@@ -194,14 +180,11 @@ def main():
     operator.upgrade_path = upgradepath.GetShortestUpgradePath(operator.name, operator.start_version, db_path)  
 
   print("Getting list of images to be mirrored...")
-  # ExtractOperatorBundles(operators, opm_cli_path, run_temp)
-  # GetBundleImageListToMirror(db_path)
   GetImageListToMirror(operators, db_path)
 
   print("Writing summary data..")
   CreateSummaryFile(operators, mirror_summary_path)
 
-  # GetImageListToMirror(operators, run_temp)
 
   images = getImages(operators)
   if mirror_images.lower() == "true":
@@ -296,10 +279,6 @@ def GetWhiteListedOperators():
     sys.exit(1)
 
 
-
-  CreateSummaryFile(operators, mirror_summary_path)
-  CreateSummaryFile(operators, mirror_summary_path)
-
 def CreateSummaryFile(operators, mirror_summary_path):
   with open(mirror_summary_path, "w") as f:
     for operator in operators:
@@ -345,6 +324,7 @@ def PruneCatalog(opm_cli_path, operators, run_temp):
   subprocess.run(cmd, shell=True, check=True)
   print("Finished push")
 
+
 def GetImageListToMirror(operators, db_path):
   con = sqlite3.connect(db_path)
   cur = con.cursor()
@@ -358,23 +338,23 @@ def GetImageListToMirror(operators, db_path):
       if len(result) == 1:
         channel = result[0][0]
     
-      cmd = "select head_operatorbundle_name from channel where package_name like '" + operator.name + "' and name like '%" + channel + "%'"
+      cmd = "select head_operatorbundle_name from channel where package_name like '" + operator.name + "' and name like '" + channel + "'"
       result = cur.execute(cmd).fetchall()
 
       if len(result) == 1:
         bundle_name = result[0][0]
-        index = bundle_name.find(".")
-        bundle_name = bundle_name[:index]
+      #   index = bundle_name.find(".")
+      #   bundle_name = bundle_name[:index]
 
-      # Get version bundle name
-      cmd = "select name from operatorbundle where (name like '%" + bundle_name + "%' and version like '" + version + "');"
+      # # Get version bundle name
+      # cmd = "select name from operatorbundle where (name like '%" + bundle_name + "%' and version like '%" + version + "%');"
 
-      result = cur.execute(cmd).fetchall()
-      if len(result) >= 1:
-        bundle_name = result[0][0]
-      else:
-        print("No bundle for for version " + version)
-        continue
+      # result = cur.execute(cmd).fetchall()
+      # if len(result) >= 1:
+      #   bundle_name = result[0][0]
+      # else:
+      #   print("No bundle for for version " + version)
+      #   continue
 
       bundle = OperatorBundle(bundle_name, version)
       
@@ -397,87 +377,6 @@ def GetImageListToMirror(operators, db_path):
       operator.operator_bundles.append(bundle)
 
 
-## OLD WAY
-# def ExtractOperatorBundles(operators, opm_cli_path, run_temp):
-
-#   operator_list = ','.join(operators)
-#   # for operator in operators:
-#   os.chdir(run_temp)
-#   cmd = opm_cli_path + " index export --index=" + custom_redhat_operators_catalog_image_url + " --package=" + operator_list + " -c='podman' --skip-tls -f " + run_temp
-#   subprocess.run(cmd, shell=True, check=True)
-#   os.chdir(script_root_dir)
-
-
-## OLD WAY
-# def GetImageListToMirror(operators, run_temp):
-
-#   for operator in operators:
-#     operator_dir = os.path.join(run_temp, operator)
-#     csv_yaml_list = GetOperatorCsvYaml(operator_dir, operator)
-#     for csv_yaml in csv_yaml_list:
-#       ExtractRelatedImages(csv_yaml)
-
-
-# def GetOperatorCsvYaml(operator_dir, operator):
-#   try:
-#     # Normally we would only have to deal with one channel, but for now the stable channel might differ from
-#     # default channel and we want both versions to be accessible.
-#     csv_yaml_list = []
-#     # Find manifest file
-#     operatorPackagePath = glob.glob(
-#         os.path.join(
-#             operator_dir,
-#             '*package*'))
-#     operatorManifestPath = os.path.dirname(operatorPackagePath[0])
-#     operatorPackageFilename = operatorPackagePath[0]
-
-#     with open(operatorPackageFilename, 'r') as packageYamlFile:
-#       packageYaml = yaml.safe_load(packageYamlFile)
-#       version = next((chan['name'] for chan in packageYaml['channels'] if chan['name'] == args.operator_channel), packageYaml['defaultChannel'])
-#       default_channel = ""
-#       for channel in packageYaml['channels']:
-#         if channel['name'] == version:
-#           default_channel = channel['currentCSV']
-#           csvFilePath = GetOperatorCsvPath(
-#               operatorManifestPath, default_channel)
-#           with open(csvFilePath, 'r') as yamlFile:
-#             csv_yaml = yaml.safe_load(yamlFile)
-#             operator_data_list[operator] = csv_yaml['spec']['version']
-#             csv_yaml_list.append(csv_yaml)
-        
-#     return csv_yaml_list
-#   except (yaml.YAMLError, IOError) as exc:
-#     print(exc)
-#   return None
-
-
-# # Search within manifest folder for correct CSV
-# def GetOperatorCsvPath(search_path, search_string):
-#   yamlFiles = Path(search_path).glob("*/**/*.yaml")
-#   for fileName in yamlFiles:
-#     with open(fileName) as f:
-#       if search_string in f.read():
-#         return fileName
-
-
-# Write related images from an operator CSV YAML to a file for later processing
-# def ExtractRelatedImages(operatorCsvYaml):
-#   for entry in operatorCsvYaml['spec']:
-#     if('relatedImages'in entry):
-#       for entry in operatorCsvYaml['spec']['relatedImages']:
-#         if('image' in entry):
-#           setImages(entry['image'])
-#         elif('value' in entry):
-#           setImages(entry['value'])
-
-  # # Some operators don't have every image they need in the related images field
-  # # We have to query the deployments spec to get the missing image(s)
-  # for entry in operatorCsvYaml['spec']['install']['spec']['deployments']:
-  #   for container in entry['spec']['template']['spec']['containers']:
-  #     if('image' in container):
-  #       setImages(container['image'])
-
-
 def ExtractIndexDb():
   cmd = oc_cli_path + " image extract " + custom_redhat_operators_catalog_image_url
   cmd += " -a " + args.authfile + " --path /database/index.db:" + run_root_dir + " --confirm --insecure"
@@ -485,27 +384,8 @@ def ExtractIndexDb():
 
   return os.path.join(run_root_dir, "index.db")
 
-# def GetBundleImageListToMirror(db_path):
-  
-#   for operator in operator_data_list:
-#     cmd = "sqlite3 -line " + db_path + " \"select bundlepath from operatorbundle where (name like '%" +  operator + "%' or bundlepath like '%" +  operator + "%') and version='" + operator_data_list[operator] + "';\""  
-#     print(cmd)
-#     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
-#     output = proc.communicate()
 
-#     for line in output[0].splitlines():
-#       imageUrl = str(line).strip()
-#       if imageUrl and len(imageUrl) > 5:
-#         imageUrl = imageUrl.split("=")[1].strip()[:-1]
-#         setImages(imageUrl)
-
-
-# Add image to a list of images to download
-# def setImages(image):
-#   if image not in operator_image_list:
-#     operator_image_list.append(image)
-
-# Get a non duplicate list of images to download
+# Get a non duplicate list of images
 def getImages(operators):
   image_list = []
   for operator in operators:
@@ -518,6 +398,7 @@ def getImages(operators):
 
 def MirrorImagesToLocalRegistry(images):
   print("Copying image list to offline registry...")
+  failed_image_list = []
   image_count = len(images)
   cur_image_count = 1
   for image in images:
@@ -547,12 +428,22 @@ def MirrorImagesToLocalRegistry(images):
             print("exception:" + e.output)
           print("ERROR copying image!")
           retries+=1
+      if not success:
+        failed_image_list.append(image)
+
     else:
       print("Known bad image: {}\n{}".format(image, "ignoring..."))
 
     cur_image_count = cur_image_count + 1
     PrintBreakLine()
   print("Finished mirroring related images.")
+
+  if len(failed_image_list) > 0:
+    print("Failed to copy the following images:")
+    PrintBreakLine()
+    for image in failed_image_list:
+      print(image)
+    PrintBreakLine()
 
 
 # Create Image Content Source Policy Yaml to apply to OCP cluster
@@ -661,6 +552,17 @@ def GetListOfCommaDelimitedOperatorList(operators):
 
     operator_list = operator_list[:-1]
     return operator_list
+
+
+def RecreatePath(item_path):
+  path = Path(item_path)
+  if path.exists():
+    cmd_args = "sudo rm -rf {}".format(item_path)
+    print("Running: " + str(cmd_args))
+    subprocess.run(cmd_args, shell=True, check=True)
+  
+  os.mkdir(item_path)
+
 
 def PrintBreakLine():
   print("----------------------------------------------")
