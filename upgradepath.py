@@ -111,7 +111,7 @@ def GetUpgradeMatrix(operator, start_version, latest_version, db_path):
 
   for entry in bundle:
     replaces = entry[3]
-    if replaces:
+    if replaces and replaces in myDict and entry[2] not in myDict[replaces][1]:
       myDict[replaces][1].append(entry[2])
 
   # Check to see if start version has a bendle in the channel
