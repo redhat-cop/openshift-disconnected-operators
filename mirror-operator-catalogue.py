@@ -97,7 +97,11 @@ parser.add_argument(
 parser.add_argument(
     "--custom-operator-catalog-image-url",
     default="",
-    help="custom operator catalog image url in your registry")
+    help="DO NOT USE THIS - This argument is depricated and will no longer work")
+parser.add_argument(
+    "--custom-operator-catalog-image-and-tag",
+    default="",
+    help="custom operator catalog image name including the tag")
 parser.add_argument(
     "--custom-operator-catalog-name",
     default="custom-redhat-operators",
@@ -142,7 +146,11 @@ redhat_operators_catalog_image_url = args.operator_catalog_image_url + operator_
 oc_cli_path = args.oc_cli_path
 
 if args.custom_operator_catalog_image_url:
-  custom_redhat_operators_catalog_image_url = args.registry_catalog + "/" + args.custom_operator_catalog_image_url + ":" +  args.catalog_version
+  print("--custom-operator-catalog-image-url is no longer supported. \n")
+  print("Use --custom-operator-catalog-image-and-tag instead")
+  exit(1)
+elif args.custom_operator_catalog_image_and_tag:
+  custom_redhat_operators_catalog_image_url = args.registry_catalog + "/" + args.custom_operator_catalog_image_and_tag
 elif args.custom_operator_catalog_name:
   custom_redhat_operators_catalog_image_url =  args.registry_catalog + "/" + args.custom_operator_catalog_name + ":" +  args.catalog_version
 else:
