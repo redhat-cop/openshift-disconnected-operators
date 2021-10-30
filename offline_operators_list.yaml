@@ -1,13 +1,19 @@
 operators:
   - name: kubevirt-hyperconverged
-    start_version: 2.5.5
+    start_version: 2.6.5
   - name: local-storage-operator
+  - name: ocs-operator
   - name: cluster-logging
   - name: elasticsearch-operator
   - name: jaeger-product
-    start_version: 1.17.8 
+    # start_version: 1.17.8 
   - name: kiali-ossm
+  - name: servicemeshoperator
+  - name: rhacs-operator
+  - name: quay-operator
   - name: codeready-workspaces
-    start_version: 2.7.0
+    # start_version: 2.7.0
   - name: ocs-operator
   - name: serverless-operator
+  - name: ansible-automation-platform-operator
+  # - name: sysdig-certified

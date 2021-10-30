@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import re
 import sqlite3
 from packaging import version
@@ -158,7 +159,7 @@ def GetHighestVersionFromMatrix(version_matrix):
   return next_version
 
 
-def GetUpgradePaths(start_version, latest_version, matrix, upgrade_paths, continue_upgrade_path):
+def GetUpgradePaths(operator, start_version, latest_version, matrix, upgrade_paths, continue_upgrade_path):
   upgrade_path = continue_upgrade_path
   upgrade_path_complete = False
   current_version = start_version
@@ -169,7 +170,7 @@ def GetUpgradePaths(start_version, latest_version, matrix, upgrade_paths, contin
       for v in range(1, len(current_version_matrix)):
         alternate_path_matrix = upgrade_path.copy()
         alternate_path_matrix.append(current_version_matrix[v])
-        GetUpgradePaths(current_version_matrix[v], latest_version, matrix, upgrade_paths, alternate_path_matrix)
+        GetUpgradePaths(operator, current_version_matrix[v], latest_version, matrix, upgrade_paths, alternate_path_matrix)
 
       upgrade_path.append(current_version_matrix[0])
       if current_version_matrix[0] == latest_version:
@@ -177,6 +178,10 @@ def GetUpgradePaths(start_version, latest_version, matrix, upgrade_paths, contin
       else:
         current_version = current_version_matrix[0]
     
+    else:
+      print("There is no upgrade path for " + operator + " version " + start_version)
+      sys.exit(1)
+
     # Probably won't need this but just in case there is a weird edge case
     if VersionEval(SanitizeVersion(current_version), latest_version, ">="):
         upgrade_path_complete = True
@@ -191,7 +196,7 @@ def GetShortestUpgradePath(operator, start_version, db_path):
   if start_version:
     matrix = GetUpgradeMatrix(operator, start_version, latest_version, db_path)
     upgrade_paths = []
-    GetUpgradePaths(start_version, latest_version, matrix, upgrade_paths, [])
+    GetUpgradePaths(operator, start_version, latest_version, matrix, upgrade_paths, [])
 
     shortest_path = upgrade_paths[0]
     for path in upgrade_paths:

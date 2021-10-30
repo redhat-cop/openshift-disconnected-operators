@@ -107,8 +107,13 @@ parser.add_argument(
     default="custom-redhat-operators",
     help="custom operator catalog name")
 
-args = parser.parse_args()
-
+try:
+  args = parser.parse_args()
+except Exception as exc:
+  print("An exception occurred while parsing arguements list")
+  print(exc)
+  sys.exit(1)
+  
 # Global Variables
 if args.run_dir != "":
   script_root_dir = args.run_dir
@@ -281,7 +286,7 @@ def GetWhiteListedOperators():
 
     return operator_list
 
-  except () as exc:
+  except Exception as exc:
     print("An exception occurred while reading operator list file")
     print(exc)
     sys.exit(1)
