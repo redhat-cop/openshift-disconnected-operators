@@ -42,12 +42,12 @@ parser.add_argument(
     help="Tag for the catalog image")
 parser.add_argument(
     "--ocp-version",
-    default="4.6",
-    help="OpenShift Y Stream. Only use X.Y version do not use Z. Default 4.6")
+    default="4.8",
+    help="OpenShift Y Stream. Only use X.Y version do not use Z. Default 4.8")
 parser.add_argument(
     "--operator-channel",
-    default="4.6",
-    help="Operator Channel. Default 4.6")
+    default="4.8",
+    help="Operator Channel. Default 4.8")
 parser.add_argument(
     "--operator-image-name",
     default="redhat-operators",
