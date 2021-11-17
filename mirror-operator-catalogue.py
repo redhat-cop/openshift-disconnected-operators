@@ -354,7 +354,7 @@ def GetImageListToMirror(operators, db_path):
       cmd = "select operatorbundle_name from channel_entry where package_name like '" + operator.name + "' and channel_name like '" + channel + "' and operatorbundle_name like '%" + version + "%';"
       result = cur.execute(cmd).fetchall()
 
-      if len(result) == 1:
+      if len(result) > 0:
         bundle_name = result[0][0]
 
       bundle = OperatorBundle(bundle_name, version)

@@ -193,16 +193,20 @@ def GetShortestUpgradePath(operator, start_version, db_path):
 
   latest_version = GetLatestVersion(operator, db_path)
 
-  if start_version:
-    matrix = GetUpgradeMatrix(operator, start_version, latest_version, db_path)
-    upgrade_paths = []
-    GetUpgradePaths(operator, start_version, latest_version, matrix, upgrade_paths, [])
+  if latest_version != None:
+    if start_version:
+      matrix = GetUpgradeMatrix(operator, start_version, latest_version, db_path)
+      upgrade_paths = []
+      GetUpgradePaths(operator, start_version, latest_version, matrix, upgrade_paths, [])
 
-    shortest_path = upgrade_paths[0]
-    for path in upgrade_paths:
-        if len(path) < len(shortest_path):
-          shortest_path = path
+      shortest_path = upgrade_paths[0]
+      for path in upgrade_paths:
+          if len(path) < len(shortest_path):
+            shortest_path = path
+    else:
+      shortest_path = [latest_version]
+
   else:
-    shortest_path = [latest_version]
-
+    shortest_path = []
+  
   return shortest_path
