@@ -51,7 +51,7 @@ For a full list of operators that work offline please see link below
     --authfile /var/run/containers/0/auth.json \
     --registry-olm local_registry_url:5000 \
     --registry-catalog local_registry_url:5000 \
-    --operator-file ./offline-operator-list \
+    --operator-file ./offline_operator_list \
     --icsp-scope=namespace
     ```
 
