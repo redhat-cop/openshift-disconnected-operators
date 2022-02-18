@@ -83,6 +83,10 @@ parser.add_argument(
     default="True",
     help="Boolean: Mirror related images. Default is True")
 parser.add_argument(
+    "--delete-publish",
+    default="True",
+    help="Boolean: Delete publish directory. Default is True")
+parser.add_argument(
     "--run-dir",
     default="",
     help="Run directory for script, must be an absolute path, only handy if running script in a container")
@@ -123,6 +127,7 @@ else:
 publish_root_dir = os.path.join(script_root_dir, args.output)
 run_root_dir = os.path.join(script_root_dir, "run")
 mirror_images = args.mirror_images
+delete_publish = args.delete_publish
 operator_image_list = []
 operator_data_list = {}
 operator_known_bad_image_list_file = os.path.join(
@@ -172,7 +177,13 @@ def main():
   mirror_summary_path = Path(mirror_summary_file)
 
   # Create publish, run and temp paths
-  RecreatePath(publish_root_dir)
+  if delete_publish.lower() == "true":
+    print("Will delete the publish dir...")
+    delete_publish_bool = True
+  else:
+    print("--delete-publish=false   Skipping deleting the publish dir")
+    delete_publish_bool = False
+  RecreatePath(publish_root_dir, delete_publish_bool)
   RecreatePath(run_root_dir)
   RecreatePath(run_temp)
 
@@ -560,14 +571,15 @@ def GetListOfCommaDelimitedOperatorList(operators):
     return operator_list
 
 
-def RecreatePath(item_path):
+def RecreatePath(item_path, delete_if_exists = True):
   path = Path(item_path)
-  if path.exists():
+  if path.exists() and delete_if_exists:
     cmd_args = "sudo rm -rf {}".format(item_path)
     print("Running: " + str(cmd_args))
     subprocess.run(cmd_args, shell=True, check=True)
   
-  os.mkdir(item_path)
+  if not path.exists():
+    os.mkdir(item_path)
 
 
 def PrintBreakLine():
