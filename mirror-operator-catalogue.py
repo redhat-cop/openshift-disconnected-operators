@@ -134,21 +134,14 @@ image_content_source_policy_template_file = os.path.join(
     script_root_dir, "image-content-source-template")
 catalog_source_template_file = os.path.join(
     script_root_dir, "catalog-source-template")
-image_content_source_policy_output_file = os.path.join(
-    publish_root_dir, 'olm-icsp.yaml')
-catalog_source_output_file = os.path.join(
-    publish_root_dir, 'rh-catalog-source.yaml')
-mapping_file = os.path.join(
-    publish_root_dir, 'mapping.txt')
-image_manifest_file = os.path.join(
-    publish_root_dir, 'image_manifest.txt')
-mirror_summary_file = os.path.join(
-    publish_root_dir, 'mirror_log.txt')
 ocp_version = args.ocp_version
 operator_channel = args.operator_channel
 operator_index_version = ":v" + operator_channel if is_number(operator_channel) else ":" + operator_channel
 redhat_operators_catalog_image_url = args.operator_catalog_image_url + operator_index_version
-oc_cli_path = args.oc_cli_path
+
+custom_redhat_operators_image_name = "custom-" + args.operator_image_name
+custom_redhat_operators_display_name = re.sub(r'^redhat-', 'red hat-', args.operator_image_name)
+custom_redhat_operators_display_name = re.sub('-', ' ', custom_redhat_operators_display_name).title()
 
 if args.custom_operator_catalog_image_url:
   print("--custom-operator-catalog-image-url is no longer supported. \n")
@@ -161,6 +154,18 @@ elif args.custom_operator_catalog_name:
 else:
   custom_redhat_operators_catalog_image_url = args.registry_catalog + "/custom-" + args.operator_catalog_image_url.split('/')[2] + ":" + args.catalog_version
   
+oc_cli_path = args.oc_cli_path
+
+image_content_source_policy_output_file = os.path.join(
+    publish_root_dir, custom_redhat_operators_image_name + '--icsp.yaml')
+catalog_source_output_file = os.path.join(
+    publish_root_dir, custom_redhat_operators_image_name + '--catalogsource.yaml')
+mapping_file=os.path.join(
+    publish_root_dir, custom_redhat_operators_image_name + '--mapping.txt')
+image_manifest_file = os.path.join(
+    publish_root_dir, custom_redhat_operators_image_name + '--image_manifest.txt')
+mirror_summary_file = os.path.join(
+    publish_root_dir, custom_redhat_operators_image_name + '--mirror_log.txt')
 
 def main():
   run_temp = os.path.join(run_root_dir, "temp")
@@ -216,7 +221,7 @@ def main():
   print("Creating Image manifest file...")
   CreateManifestFile(images)
   print("Creating Catalog Source YAML...")
-  CreateCatalogSourceYaml(custom_redhat_operators_catalog_image_url)
+  CreateCatalogSourceYaml(custom_redhat_operators_catalog_image_url, custom_redhat_operators_image_name, custom_redhat_operators_display_name)
 
   print("Catalogue creation and image mirroring complete")
   print("See Publish folder for the image content source policy and catalog source yaml files to apply to your cluster")
@@ -538,10 +543,10 @@ def GetSourceToMirrorMapping(images):
   return mapping
 
 
-def CreateCatalogSourceYaml(image_url):
+def CreateCatalogSourceYaml(image_url, image_name, display_name):
   with open(catalog_source_template_file, 'r') as f:
     templateFile = Template(f.read())
-  content = templateFile.render(CatalogSource=image_url,CatalogName=args.custom_operator_catalog_name)
+  content = templateFile.render(CatalogSourceImage=image_url, CatalogSourceName=image_name, CatalogSourceDisplayName=display_name)
   with open(catalog_source_output_file, "w") as f:
     f.write(content)
 
