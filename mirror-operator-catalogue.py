@@ -83,6 +83,10 @@ parser.add_argument(
     default="True",
     help="Boolean: Mirror related images. Default is True")
 parser.add_argument(
+    "--add-tags-to-images-mirrored-by-digest",
+    default="False",
+    help="Boolean: add tags to images mirrored by digest. Default is False")
+parser.add_argument(
     "--run-dir",
     default="",
     help="Run directory for script, must be an absolute path, only handy if running script in a container")
@@ -123,6 +127,7 @@ else:
 publish_root_dir = os.path.join(script_root_dir, args.output)
 run_root_dir = os.path.join(script_root_dir, "run")
 mirror_images = args.mirror_images
+add_tags_to_images_mirrored_by_digest = args.add_tags_to_images_mirrored_by_digest
 operator_image_list = []
 operator_data_list = {}
 operator_known_bad_image_list_file = os.path.join(
@@ -410,7 +415,7 @@ def MirrorImagesToLocalRegistry(images):
         " of " +
         str(image_count))
     if isBadImage(image) == False:
-      destUrl = ChangeBaseRegistryUrl(image)
+      destUrl = GenerateDestUrl(image)
       max_retries = 5
       retries = 0
       success = False
@@ -479,7 +484,7 @@ def GetRepoListToMirror(images):
         sourceRepo) if sourceRepo not in sourceList else sourceList
 
   for source in sourceList:
-    mirrorList[source] = ChangeBaseRegistryUrl(source)
+    mirrorList[source] = GenerateDestUrl(source)
 
   return mirrorList
 
@@ -504,11 +509,17 @@ def isBadImage(image):
         return True
   return False
 
-def ChangeBaseRegistryUrl(image_url):
+def GenerateDestUrl(image_url):
   res = image_url.find("/")
   if res != -1:
-    return args.registry_olm + image_url[res:]
-  return args.registry_olm
+    GenDestUrl = args.registry_olm + image_url[res:]
+  else:
+    GenDestUrl = args.registry_olm
+
+  if add_tags_to_images_mirrored_by_digest.lower() == "true":
+    GenDestUrl = re.sub(r'@sha256:', ':', GenDestUrl)
+
+  return GenDestUrl
 
 
 def CopyImageToDestinationRegistry(
@@ -533,7 +544,7 @@ def GetSourceToMirrorMapping(images):
     else:
       sourceRepo = source.group()[:-1]
 
-    mapping[image] = ChangeBaseRegistryUrl(sourceRepo)
+    mapping[image] = GenerateDestUrl(sourceRepo)
 
   return mapping
 
