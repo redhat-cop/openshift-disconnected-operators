@@ -2,3 +2,14 @@ kubevirt-hyperconverged
 local-storage-operator
 cluster-logging
 codeready-workspaces
+quay-bridge-operator
+quay-operator
+openshift-gitops-operator
+rhacs-operator
+devspaces
+odf-operator
+advanced-cluster-management
+sandboxed-containers-operator
+servicemeshoperator
+openshift-pipelines-operator-rh
+serverless-operator
