@@ -39,9 +39,9 @@ For a full list of operators that work offline please see link below
 ## Running the script
 
 1. Install the tools listed in the requirements section
-2. Login to your offline registry using podman (This is the registry where you will be publishing the catalogue and related images)
-3. Login to registry.redhat.io using podman
-4. Login to quay.io using podman
+2. Login to your offline registry using podman (This is the registry where you will be publishing the catalogue and related images). (You can use the --authfile option instead)
+3. Login to registry.redhat.io using podman (You can use the --authfile option instead)
+4. Login to quay.io using podman (You can use the --authfile option instead)
 5. Update the offline_operator_list.yaml file with the operators you want to include in the catalog creation and mirroring. See <https://access.redhat.com/articles/4740011> for list of supported offline operators
 6. Run the script (sample command, see arguements section for more details)
 
@@ -71,6 +71,8 @@ For a full list of operators that work offline please see link below
 Optional:
 
 The location of the auth.json file generated when you use podman or docker to login registries using podman. The auth file is located either in your home directory under .docker or /run/user/your_uid/containers/auth.json or /var/run/containers/your_uid/auth.json
+
+If you already have a `pull-secret.json` file with all registries credentials (quay.io, registry.redhat.io, private registry) you don't need to login to the registries with podman.
 
 ##### --registry-olm
 
@@ -148,7 +150,7 @@ operators:
   - name: local-storage-operator
   - name: cluster-logging
   - name: jaeger-product
-    start_version: 1.17.8 
+    start_version: 1.17.8
   - name: kiali-ossm
   - name: codeready-workspaces
     start_version: 2.7.0

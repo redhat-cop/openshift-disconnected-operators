@@ -121,7 +121,7 @@ except Exception as exc:
   print("An exception occurred while parsing arguements list")
   print(exc)
   sys.exit(1)
-  
+
 # Global Variables
 if args.run_dir != "":
   script_root_dir = args.run_dir
@@ -163,7 +163,6 @@ elif args.custom_operator_catalog_name:
   custom_redhat_operators_catalog_image_url =  args.registry_catalog + "/" + args.custom_operator_catalog_name + ":" +  args.catalog_version
 else:
   custom_redhat_operators_catalog_image_url = args.registry_catalog + "/custom-" + args.operator_catalog_image_url.split('/')[2] + ":" + args.catalog_version
-  
 oc_cli_path = args.oc_cli_path
 
 image_content_source_policy_output_file = os.path.join(
@@ -205,13 +204,13 @@ def main():
   # # NEED TO BE LOGGED IN TO REGISTRY.REDHAT.IO WITHOUT AUTHFILE ARGUMENT
   print("Pruning OLM catalogue...")
   PruneCatalog(opm_cli_path, operators, run_temp)
-  
+
   print("Extracting custom catalogue database...")
   db_path = ExtractIndexDb()
-  
+
   print("Create upgrade matrix for selected operators...")
   for operator in operators:
-    operator.upgrade_path = upgradepath.GetShortestUpgradePath(operator.name, operator.start_version, db_path)  
+    operator.upgrade_path = upgradepath.GetShortestUpgradePath(operator.name, operator.start_version, db_path)
 
   print("Getting list of images to be mirrored...")
   GetImageListToMirror(operators, db_path)
@@ -265,7 +264,7 @@ def GetOcCli(run_temp):
 
 
 def GetOpmCli(run_temp):
-  
+
   base_url = "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
   archive_name = "opm-linux.tar.gz"
   channel = "fast"
@@ -293,7 +292,7 @@ def GetWhiteListedOperators():
         operators = f.read().splitlines()
         for operator in operators:
           operator_list.append(OperatorSpec(operator, ""))
-    
+
     elif args.operator_yaml_file:
       with open(args.operator_yaml_file) as f:
         data = yaml.safe_load(f)
@@ -323,7 +322,7 @@ def CreateSummaryFile(operators, mirror_summary_path):
         upgrade_path += version + " -> "
       upgrade_path = upgrade_path[:-4]
       f.write(upgrade_path)
-      f.write("\n") 
+      f.write("\n")
       f.write("============================================================\n \n")
       for bundle in operator.operator_bundles:
         f.write("[Version: " + bundle.version + "]\n")
@@ -343,9 +342,10 @@ def GetFieldValue(data, field):
 
 # Create a custom catalogue with selected operators
 def PruneCatalog(opm_cli_path, operators, run_temp):
-  
+
   operator_list = GetListOfCommaDelimitedOperatorList(operators)
-  cmd = opm_cli_path + " index prune -f " + redhat_operators_catalog_image_url
+  cmd = "REGISTRY_AUTH_FILE=" + args.authfile + " "
+  cmd += opm_cli_path + " index prune -f " + redhat_operators_catalog_image_url
   cmd += " -p " + operator_list # local-storage-operator,cluster-logging,kubevirt-hyperconverged "
   cmd += " -t " + custom_redhat_operators_catalog_image_url
   print("Running: " + cmd)
@@ -353,7 +353,7 @@ def PruneCatalog(opm_cli_path, operators, run_temp):
   subprocess.run(cmd, shell=True, check=True)
   os.chdir(script_root_dir)
 
-  print("Pushing custom catalogue " + custom_redhat_operators_catalog_image_url + "to registry...")
+  print("Pushing custom catalogue " + custom_redhat_operators_catalog_image_url + " to registry...")
   cmd = "podman push " + custom_redhat_operators_catalog_image_url + " --tls-verify=false --authfile " + args.authfile
   subprocess.run(cmd, shell=True, check=True)
   print("Finished push")
@@ -371,7 +371,7 @@ def GetImageListToMirror(operators, db_path):
       result = cur.execute(cmd).fetchall()
       if len(result) == 1:
         channel = result[0][0]
-    
+
       cmd = "select operatorbundle_name from channel_entry where package_name like '" + operator.name + "' and channel_name like '" + channel + "' and operatorbundle_name like '%" + version + "%';"
       result = cur.execute(cmd).fetchall()
 
@@ -379,7 +379,7 @@ def GetImageListToMirror(operators, db_path):
         bundle_name = result[0][0]
 
       bundle = OperatorBundle(bundle_name, version)
-      
+
       # Get related images for the operator bundle
       cmd = "select image from related_image where operatorbundle_name like '%" + bundle_name + "%';"
 
@@ -387,7 +387,7 @@ def GetImageListToMirror(operators, db_path):
       if len(result) > 0:
         for image in result:
           bundle.related_images.append(image[0])
-      
+
       # Get bundle images for operator bundle
       cmd = "select bundlepath from operatorbundle where (name like '%" +  operator.name + "%' or bundlepath like '%" +  operator.name + "%') and version='" + version + "';"
 
@@ -591,7 +591,6 @@ def RecreatePath(item_path, delete_if_exists = True):
   
   if not path.exists():
     os.mkdir(item_path)
-
 
 def PrintBreakLine():
   print("----------------------------------------------")
