@@ -86,6 +86,7 @@ parser.add_argument(
     "--add-tags-to-images-mirrored-by-digest",
     default="False",
     help="Boolean: add tags to images mirrored by digest. Default is False")
+parser.add_argument(
     "--delete-publish",
     default="True",
     help="Boolean: Delete publish directory. Default is True")
