@@ -84,6 +84,14 @@ parser.add_argument(
     default="True",
     help="Boolean: Mirror related images. Default is True")
 parser.add_argument(
+    "--add-tags-to-images-mirrored-by-digest",
+    default="False",
+    help="Boolean: add tags to images mirrored by digest. Default is False")
+parser.add_argument(
+    "--delete-publish",
+    default="True",
+    help="Boolean: Delete publish directory. Default is True")
+parser.add_argument(
     "--run-dir",
     default="",
     help="Run directory for script, must be an absolute path, only handy if running script in a container")
@@ -124,6 +132,8 @@ else:
 publish_root_dir = os.path.join(script_root_dir, args.output)
 run_root_dir = os.path.join(script_root_dir, "run")
 mirror_images = args.mirror_images
+add_tags_to_images_mirrored_by_digest = args.add_tags_to_images_mirrored_by_digest
+delete_publish = args.delete_publish
 operator_image_list = []
 operator_data_list = {}
 operator_known_bad_image_list_file = os.path.join(
@@ -135,21 +145,14 @@ image_content_source_policy_template_file = os.path.join(
     script_root_dir, "image-content-source-template")
 catalog_source_template_file = os.path.join(
     script_root_dir, "catalog-source-template")
-image_content_source_policy_output_file = os.path.join(
-    publish_root_dir, 'olm-icsp.yaml')
-catalog_source_output_file = os.path.join(
-    publish_root_dir, 'rh-catalog-source.yaml')
-mapping_file = os.path.join(
-    publish_root_dir, 'mapping.txt')
-image_manifest_file = os.path.join(
-    publish_root_dir, 'image_manifest.txt')
-mirror_summary_file = os.path.join(
-    publish_root_dir, 'mirror_log.txt')
 ocp_version = args.ocp_version
 operator_channel = args.operator_channel
 operator_index_version = ":v" + operator_channel if is_number(operator_channel) else ":" + operator_channel
 redhat_operators_catalog_image_url = args.operator_catalog_image_url + operator_index_version
-oc_cli_path = args.oc_cli_path
+
+custom_redhat_operators_image_name = "custom-" + args.operator_image_name
+custom_redhat_operators_display_name = re.sub(r'^redhat-', 'red hat-', args.operator_image_name)
+custom_redhat_operators_display_name = re.sub('-', ' ', custom_redhat_operators_display_name).title()
 
 if args.custom_operator_catalog_image_url:
   print("--custom-operator-catalog-image-url is no longer supported. \n")
@@ -162,13 +165,31 @@ elif args.custom_operator_catalog_name:
 else:
   custom_redhat_operators_catalog_image_url = args.registry_catalog + "/custom-" + args.operator_catalog_image_url.split('/')[2] + ":" + args.catalog_version
 
+oc_cli_path = args.oc_cli_path
+
+image_content_source_policy_output_file = os.path.join(
+    publish_root_dir, custom_redhat_operators_image_name + '--icsp.yaml')
+catalog_source_output_file = os.path.join(
+    publish_root_dir, custom_redhat_operators_image_name + '--catalogsource.yaml')
+mapping_file=os.path.join(
+    publish_root_dir, custom_redhat_operators_image_name + '--mapping.txt')
+image_manifest_file = os.path.join(
+    publish_root_dir, custom_redhat_operators_image_name + '--image_manifest.txt')
+mirror_summary_file = os.path.join(
+    publish_root_dir, custom_redhat_operators_image_name + '--mirror_log.txt')
 
 def main():
   run_temp = os.path.join(run_root_dir, "temp")
   mirror_summary_path = Path(mirror_summary_file)
 
   # Create publish, run and temp paths
-  RecreatePath(publish_root_dir)
+  if delete_publish.lower() == "true":
+    print("Will delete the publish dir...")
+    delete_publish_bool = True
+  else:
+    print("--delete-publish=false   Skipping deleting the publish dir")
+    delete_publish_bool = False
+  RecreatePath(publish_root_dir, delete_publish_bool)
   RecreatePath(run_root_dir)
   RecreatePath(run_temp)
 
@@ -221,7 +242,7 @@ def main():
   CreateManifestFile(images)
 
   print("Creating Catalog Source YAML...")
-  CreateCatalogSourceYaml(custom_redhat_operators_catalog_image_url)
+  CreateCatalogSourceYaml(custom_redhat_operators_catalog_image_url, custom_redhat_operators_image_name, custom_redhat_operators_display_name)
 
   print("Catalogue creation and image mirroring complete")
   print("See Publish folder for the image content source policy and catalog source yaml files to apply to your cluster")
@@ -409,6 +430,7 @@ def PruneSqliteBasedCatalog(opm_cli_path, operators, run_temp):
   cmd += f" -p {operator_list}"  # local-storage-operator,cluster-logging,kubevirt-hyperconverged "
   cmd += f" -t {custom_redhat_operators_catalog_image_url}"
   print(f"Running: {cmd}")
+
   os.chdir(run_temp)
   subprocess.run(cmd, shell=True, check=True)
   generate_command = f"{opm_cli_path} generate dockerfile pruned-catalog/configs"
@@ -495,7 +517,7 @@ def MirrorImagesToLocalRegistry(images):
         " of " +
         str(image_count))
     if isBadImage(image) == False:
-      destUrl = ChangeBaseRegistryUrl(image)
+      destUrl = GenerateDestUrl(image)
       max_retries = 5
       retries = 0
       success = False
@@ -564,7 +586,7 @@ def GetRepoListToMirror(images):
         sourceRepo) if sourceRepo not in sourceList else sourceList
 
   for source in sourceList:
-    mirrorList[source] = ChangeBaseRegistryUrl(source)
+    mirrorList[source] = GenerateDestUrl(source)
 
   return mirrorList
 
@@ -589,11 +611,17 @@ def isBadImage(image):
         return True
   return False
 
-def ChangeBaseRegistryUrl(image_url):
+def GenerateDestUrl(image_url):
   res = image_url.find("/")
   if res != -1:
-    return args.registry_olm + image_url[res:]
-  return args.registry_olm
+    GenDestUrl = args.registry_olm + image_url[res:]
+  else:
+    GenDestUrl = args.registry_olm
+
+  if add_tags_to_images_mirrored_by_digest.lower() == "true":
+    GenDestUrl = re.sub(r'@sha256:', ':', GenDestUrl)
+
+  return GenDestUrl
 
 
 def CopyImageToDestinationRegistry(
@@ -618,15 +646,15 @@ def GetSourceToMirrorMapping(images):
     else:
       sourceRepo = source.group()[:-1]
 
-    mapping[image] = ChangeBaseRegistryUrl(sourceRepo)
+    mapping[image] = GenerateDestUrl(sourceRepo)
 
   return mapping
 
 
-def CreateCatalogSourceYaml(image_url):
+def CreateCatalogSourceYaml(image_url, image_name, display_name):
   with open(catalog_source_template_file, 'r') as f:
     templateFile = Template(f.read())
-  content = templateFile.render(CatalogSource=image_url,CatalogName=args.custom_operator_catalog_name)
+  content = templateFile.render(CatalogSourceImage=image_url, CatalogSourceName=image_name, CatalogSourceDisplayName=display_name)
   with open(catalog_source_output_file, "w") as f:
     f.write(content)
 
@@ -640,15 +668,15 @@ def GetListOfCommaDelimitedOperatorList(operators):
     return operator_list
 
 
-def RecreatePath(item_path):
+def RecreatePath(item_path, delete_if_exists = True):
   path = Path(item_path)
-  if path.exists():
+  if path.exists() and delete_if_exists:
     cmd_args = "sudo rm -rf {}".format(item_path)
     print("Running: " + str(cmd_args))
     subprocess.run(cmd_args, shell=True, check=True)
 
-  os.mkdir(item_path)
-
+  if not path.exists():
+    os.mkdir(item_path)
 
 def PrintBreakLine():
   print("----------------------------------------------")
