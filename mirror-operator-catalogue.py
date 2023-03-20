@@ -11,7 +11,8 @@ from jinja2 import Template
 from pathlib import Path
 import upgradepath
 import sqlite3
-
+import json
+import shutil
 
 def is_number(string):
   try:
@@ -163,6 +164,7 @@ elif args.custom_operator_catalog_name:
   custom_redhat_operators_catalog_image_url =  args.registry_catalog + "/" + args.custom_operator_catalog_name + ":" +  args.catalog_version
 else:
   custom_redhat_operators_catalog_image_url = args.registry_catalog + "/custom-" + args.operator_catalog_image_url.split('/')[2] + ":" + args.catalog_version
+
 oc_cli_path = args.oc_cli_path
 
 image_content_source_policy_output_file = os.path.join(
@@ -203,20 +205,23 @@ def main():
 
   # # NEED TO BE LOGGED IN TO REGISTRY.REDHAT.IO WITHOUT AUTHFILE ARGUMENT
   print("Pruning OLM catalogue...")
-  PruneCatalog(opm_cli_path, operators, run_temp)
+  if int(operator_channel.split('.')[0]) > 3 and int(operator_channel.split('.')[1]) > 10:
+      PruneFileBasedCatalog(opm_cli_path, operators, run_temp)
+  else:
+      PruneSqliteBasedCatalog(opm_cli_path, operators, run_temp)
 
-  print("Extracting custom catalogue database...")
-  db_path = ExtractIndexDb()
+      print("Extracting custom catalogue database...")
+      db_path = ExtractIndexDb()
 
-  print("Create upgrade matrix for selected operators...")
-  for operator in operators:
-    operator.upgrade_path = upgradepath.GetShortestUpgradePath(operator.name, operator.start_version, db_path)
+      print("Create upgrade matrix for selected operators...")
+      for operator in operators:
+        operator.upgrade_path = upgradepath.GetShortestUpgradePath(operator.name, operator.start_version, db_path)
 
-  print("Getting list of images to be mirrored...")
-  GetImageListToMirror(operators, db_path)
+      print("Getting list of images to be mirrored...")
+      GetImageListToMirror(operators, db_path)
 
-  print("Writing summary data..")
-  CreateSummaryFile(operators, mirror_summary_path)
+      print("Writing summary data..")
+      CreateSummaryFile(operators, mirror_summary_path)
 
 
   images = getImages(operators)
@@ -235,6 +240,7 @@ def main():
 
   print("Creating Image manifest file...")
   CreateManifestFile(images)
+
   print("Creating Catalog Source YAML...")
   CreateCatalogSourceYaml(custom_redhat_operators_catalog_image_url, custom_redhat_operators_image_name, custom_redhat_operators_display_name)
 
@@ -340,22 +346,102 @@ def GetFieldValue(data, field):
   else:
     return ""
 
-# Create a custom catalogue with selected operators
-def PruneCatalog(opm_cli_path, operators, run_temp):
+# Create a custom catalog with selected operators from newer file based catalog
+def PruneFileBasedCatalog(opm_cli_path, operators, run_temp):
+    script_root_dir = os.path.dirname(os.path.realpath(__file__))
+    prune_path = os.path.join(run_temp, "pruned-catalog")
+    configs_path = os.path.join(prune_path, "configs")
+    cdata = os.path.join(configs_path, "data.out")
+
+    if args.authfile:
+        # Copy to correct folder for opm
+        HOME = os.getenv('HOME')
+        docker_cfg =  os.path.join(HOME, ".docker", "config.json")
+        shutil.copyfile(args.authfile, docker_cfg)
+    else:
+        print("You must pass an auth file with the '--authfile' option")
+        exit(1)
+    os.chdir(run_temp)
+
+    if not os.path.exists(configs_path):
+        print(f"Creating config path ('{configs_path}')")
+        os.makedirs(configs_path, exist_ok=True )
+    render_command = f"{opm_cli_path} render {redhat_operators_catalog_image_url}"
+    if not os.path.exists(cdata):
+        print(f"Running: '{render_command}'")
+        data = subprocess.run(render_command, shell=True, check=True, capture_output=True)
+        with open(cdata, 'a') as out:
+            out.write(data.stdout.decode('utf-8').strip())
+    filter_command = f"jq 'select("
+    idx = 0
+    for oper in operators:
+        if idx == 0:
+            filter_command += f".package == \"{oper.name}\" or .name == \"{oper.name}\""
+        else:
+            filter_command += f" or .package == \"{oper.name}\" or .name == \"{oper.name}\""
+        idx += 1
+    filter_command += f")' {cdata}"
+    #if not os.path.exists(f"{configs_path}/index.json"):
+    filter_data = subprocess.run(filter_command, shell=True, check=True, capture_output=True)
+    print(f"chdir to {configs_path}")
+    os.chdir(configs_path)
+    print(f"writing index.json")
+    with open('index.json', 'a') as index:
+        index.write(filter_data.stdout.decode('utf-8').strip())
+    os.remove(cdata)
+    dockerfile_cmd = f"{opm_cli_path} generate dockerfile {configs_path}"
+    print(f"Running '{dockerfile_cmd}'")
+    subprocess.run(dockerfile_cmd, shell=True, check=True, capture_output=True)
+    os.chdir(prune_path)
+    build_cmd = f"podman build -t {custom_redhat_operators_catalog_image_url} -f configs.Dockerfile"
+    print(f"Running '{build_cmd}'")
+    try:
+        build_data = subprocess.run(build_cmd, shell=True, check=True, capture_output=True)
+    except subprocess.CalledProcessError:
+        print(build_data.stderr.decode('utf-8').strip())
+    except:
+        print("Something went wrong building, bailing...")
+    print(build_data.stdout.decode('utf-8').strip())
+    push_cmd = f"podman push {custom_redhat_operators_catalog_image_url} --tls-verify=false --authfile {args.authfile}"
+
+    print(f"Pushing custom catalogue {custom_redhat_operators_catalog_image_url} to registry...")
+    print(f"Running '{push_cmd}'")
+    try:
+        push_data = subprocess.run(push_cmd, shell=True, check=True, capture_output=True)
+    except subprocess.CalledProcessError as e:
+        print("Something went wrong pushing (auth?), bailing...")
+        exit(1)
+    print(push_data.stdout.decode('utf-8').strip())
+    os.chdir(script_root_dir)
+
+# Create a custom catalogue with selected operators from older sqlite3 based catalog
+def PruneSqliteBasedCatalog(opm_cli_path, operators, run_temp):
+  if args.authfile:
+      # Copy to correct folder for opm
+      HOME = os.getenv('HOME')
+      docker_cfg =  os.path.join(HOME, ".docker", "config.json")
+      shutil.copyfile(args.authfile, docker_cfg)
+  else:
+      print("You must pass an auth file with the '--authfile' option")
+      exit(1)
 
   operator_list = GetListOfCommaDelimitedOperatorList(operators)
-  cmd = "REGISTRY_AUTH_FILE=" + args.authfile + "; "
-  cmd += opm_cli_path + " index prune -f " + redhat_operators_catalog_image_url
-  cmd += " -p " + operator_list # local-storage-operator,cluster-logging,kubevirt-hyperconverged "
-  cmd += " -t " + custom_redhat_operators_catalog_image_url
-  print("Running: " + cmd)
+  cmd = f"{opm_cli_path} index prune -f {redhat_operators_catalog_image_url}"
+  cmd += f" -p {operator_list}"  # local-storage-operator,cluster-logging,kubevirt-hyperconverged "
+  cmd += f" -t {custom_redhat_operators_catalog_image_url}"
+  print(f"Running: {cmd}")
+
   os.chdir(run_temp)
   subprocess.run(cmd, shell=True, check=True)
+  generate_command = f"{opm_cli_path} generate dockerfile pruned-catalog/configs"
+
   os.chdir(script_root_dir)
 
-  print("Pushing custom catalogue " + custom_redhat_operators_catalog_image_url + " to registry...")
-  cmd = "podman push " + custom_redhat_operators_catalog_image_url + " --tls-verify=false --authfile " + args.authfile
-  subprocess.run(cmd, shell=True, check=True)
+  push_cmd = f"podman push {custom_redhat_operators_catalog_image_url} --tls-verify=false --authfile {args.authfile}"
+
+  print(f"Pushing custom catalogue {custom_redhat_operators_catalog_image_url} to registry...")
+  print(f"Running '{push_cmd}'")
+  subprocess.run(push_cmd, shell=True, check=True)
   print("Finished push")
 
 
@@ -588,7 +674,7 @@ def RecreatePath(item_path, delete_if_exists = True):
     cmd_args = "sudo rm -rf {}".format(item_path)
     print("Running: " + str(cmd_args))
     subprocess.run(cmd_args, shell=True, check=True)
-  
+
   if not path.exists():
     os.mkdir(item_path)
 
