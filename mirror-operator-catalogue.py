@@ -490,14 +490,13 @@ def GetImageListToMirror(operators, db_path):
 
 def getFileBasedCatalogRelatedImages(operators,cdata):
     for operator in operators:
-      #operator.upgrade_path = upgradepath.GetShortestUpgradePath(operator.name, operator.start_version, db_path)
       chan_filter = f"jq '.|select(.schema == \"olm.package\" and .name == \"{operator.name}\")|.defaultChannel' {cdata}"
       defChan = subprocess.run(chan_filter, shell=True, check=True, capture_output=True).stdout.decode('utf-8').strip()
       enries_filter = f"jq -r --arg op \"{operator.name}\" --arg chan \"{defChan}\" '. | select( .schema==\"olm.channel\" and .name==$chan and .package==$op)|.entries[].name'  {cdata}"
       entries = subprocess.run(enries_filter, shell=True, check=True, capture_output=True).stdout.decode('utf-8').strip().split('\n')
       related_filter = f"jq -r --arg pkg \"{operator.name}\" --arg vers \"{natsorted(entries)[-1]}\" '.|select(.schema == \"olm.bundle\" and .package == $pkg and .name == $vers)|.relatedImages' {cdata}"
       bundle_name = natsorted(entries)[-1] #subprocess.run(enries_filter, shell=True, check=True, capture_output=True).stdout.decode('utf-8').strip()
-      version = GetVersion(bundle_name)
+      version = upgradepath.GetVersion(bundle_name)
       bundle = OperatorBundle(bundle_name, version)
       for relatedImage in  json.loads(subprocess.run(related_filter, shell=True, check=True, capture_output=True).stdout.decode('utf-8').strip()):
         bundle.related_images.append(relatedImage)
