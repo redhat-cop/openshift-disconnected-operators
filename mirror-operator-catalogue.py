@@ -13,6 +13,7 @@ import upgradepath
 import sqlite3
 import json
 import shutil
+from natsort import natsorted
 
 def is_number(string):
   try:
@@ -206,7 +207,14 @@ def main():
   # # NEED TO BE LOGGED IN TO REGISTRY.REDHAT.IO WITHOUT AUTHFILE ARGUMENT
   print("Pruning OLM catalogue...")
   if int(operator_channel.split('.')[0]) > 3 and int(operator_channel.split('.')[1]) > 10:
-      PruneFileBasedCatalog(opm_cli_path, operators, run_temp)
+      script_root_dir = os.path.dirname(os.path.realpath(__file__))
+      prune_path = os.path.join(run_temp, "pruned-catalog")
+      configs_path = os.path.join(prune_path, "configs")
+      cdata = os.path.join(configs_path, "data.out")
+      PruneFileBasedCatalog(opm_cli_path, operators, run_temp, script_root_dir, prune_path, configs_path, cdata)
+
+      print("Getting list of images to be mirrored...")
+      getFileBasedCatalogRelatedImages(operators,cdata)
   else:
       PruneSqliteBasedCatalog(opm_cli_path, operators, run_temp)
 
@@ -347,11 +355,7 @@ def GetFieldValue(data, field):
     return ""
 
 # Create a custom catalog with selected operators from newer file based catalog
-def PruneFileBasedCatalog(opm_cli_path, operators, run_temp):
-    script_root_dir = os.path.dirname(os.path.realpath(__file__))
-    prune_path = os.path.join(run_temp, "pruned-catalog")
-    configs_path = os.path.join(prune_path, "configs")
-    cdata = os.path.join(configs_path, "data.out")
+def PruneFileBasedCatalog(opm_cli_path, operators, run_temp, script_root_dir, prune_path, configs_path, cdata):
 
     if args.authfile:
         # Copy to correct folder for opm
@@ -482,6 +486,21 @@ def GetImageListToMirror(operators, db_path):
         for image in result:
           bundle.related_images.append(image[0])
 
+      operator.operator_bundles.append(bundle)
+
+def getFileBasedCatalogRelatedImages(operators,cdata):
+    for operator in operators:
+      #operator.upgrade_path = upgradepath.GetShortestUpgradePath(operator.name, operator.start_version, db_path)
+      chan_filter = f"jq '.|select(.schema == \"olm.package\" and .name == \"{operator.name}\")|.defaultChannel' {cdata}"
+      defChan = subprocess.run(chan_filter, shell=True, check=True, capture_output=True).stdout.decode('utf-8').strip()
+      enries_filter = f"jq -r --arg op \"{operator.name}\" --arg chan \"{defChan}\" '. | select( .schema==\"olm.channel\" and .name==$chan and .package==$op)|.entries[].name'  {cdata}"
+      entries = subprocess.run(enries_filter, shell=True, check=True, capture_output=True).stdout.decode('utf-8').strip().split('\n')
+      related_filter = f"jq -r --arg pkg \"{operator.name}\" --arg vers \"{natsorted(entries)[-1]}\" '.|select(.schema == \"olm.bundle\" and .package == $pkg and .name == $vers)|.relatedImages' {cdata}"
+      bundle_name = natsorted(entries)[-1] #subprocess.run(enries_filter, shell=True, check=True, capture_output=True).stdout.decode('utf-8').strip()
+      version = GetVersion(bundle_name)
+      bundle = OperatorBundle(bundle_name, version)
+      for relatedImage in  json.loads(subprocess.run(related_filter, shell=True, check=True, capture_output=True).stdout.decode('utf-8').strip()):
+        bundle.related_images.append(relatedImage)
       operator.operator_bundles.append(bundle)
 
 
