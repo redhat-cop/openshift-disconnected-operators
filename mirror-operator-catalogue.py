@@ -210,8 +210,8 @@ def main():
       script_root_dir = os.path.dirname(os.path.realpath(__file__))
       prune_path = os.path.join(run_temp, "pruned-catalog")
       configs_path = os.path.join(prune_path, "configs")
-      cdata = os.path.join(configs_path, "data.out")
-      PruneFileBasedCatalog(opm_cli_path, operators, run_temp, script_root_dir, prune_path, configs_path, cdata)
+      cdata = os.path.join(configs_path, "index.json")
+      operators = PruneFileBasedCatalog(opm_cli_path, operators, run_temp, script_root_dir, prune_path, configs_path, cdata)
 
       print("Getting list of images to be mirrored...")
       getFileBasedCatalogRelatedImages(operators,cdata)
@@ -356,7 +356,6 @@ def GetFieldValue(data, field):
 
 # Create a custom catalog with selected operators from newer file based catalog
 def PruneFileBasedCatalog(opm_cli_path, operators, run_temp, script_root_dir, prune_path, configs_path, cdata):
-
     if args.authfile:
         # Copy to correct folder for opm
         HOME = os.getenv('HOME')
@@ -374,25 +373,26 @@ def PruneFileBasedCatalog(opm_cli_path, operators, run_temp, script_root_dir, pr
     if not os.path.exists(cdata):
         print(f"Running: '{render_command}'")
         data = subprocess.run(render_command, shell=True, check=True, capture_output=True)
-        with open(cdata, 'a') as out:
+        with open('full_index.json', 'a') as out:
             out.write(data.stdout.decode('utf-8').strip())
+    for idx,operator in enumerate(operators):
+      filter_test = f"jq 'select( .name == \"{operator.name}\" ).name' full_index.json"
+      filter_test_data = subprocess.run(filter_test, shell=True, check=True, capture_output=True)
+      if filter_test_data.stdout.decode('utf-8').strip() == "":
+        del operators[idx]
     filter_command = f"jq 'select("
-    idx = 0
-    for oper in operators:
-        if idx == 0:
-            filter_command += f".package == \"{oper.name}\" or .name == \"{oper.name}\""
-        else:
-            filter_command += f" or .package == \"{oper.name}\" or .name == \"{oper.name}\""
-        idx += 1
-    filter_command += f")' {cdata}"
-    #if not os.path.exists(f"{configs_path}/index.json"):
+    for idx,operator in enumerate(operators):
+      if idx == 0:
+          filter_command += f".package == \"{operator.name}\" or .name == \"{operator.name}\""
+      else:
+          filter_command += f" or .package == \"{operator.name}\" or .name == \"{operator.name}\""
+    filter_command += f")' full_index.json"
     filter_data = subprocess.run(filter_command, shell=True, check=True, capture_output=True)
     print(f"chdir to {configs_path}")
     os.chdir(configs_path)
-    print(f"writing index.json")
-    with open('index.json', 'a') as index:
+    print(f"writing '{cdata}'")
+    with open(cdata, 'w') as index:
         index.write(filter_data.stdout.decode('utf-8').strip())
-    os.remove(cdata)
     dockerfile_cmd = f"{opm_cli_path} generate dockerfile {configs_path}"
     print(f"Running '{dockerfile_cmd}'")
     subprocess.run(dockerfile_cmd, shell=True, check=True, capture_output=True)
@@ -417,6 +417,7 @@ def PruneFileBasedCatalog(opm_cli_path, operators, run_temp, script_root_dir, pr
         exit(1)
     print(push_data.stdout.decode('utf-8').strip())
     os.chdir(script_root_dir)
+    return operators
 
 # Create a custom catalogue with selected operators from older sqlite3 based catalog
 def PruneSqliteBasedCatalog(opm_cli_path, operators, run_temp):
@@ -490,16 +491,16 @@ def GetImageListToMirror(operators, db_path):
 
 def getFileBasedCatalogRelatedImages(operators,cdata):
     for operator in operators:
-      chan_filter = f"jq '.|select(.schema == \"olm.package\" and .name == \"{operator.name}\")|.defaultChannel' {cdata}"
+      chan_filter = f"jq -r '.|select(.schema == \"olm.package\" and .name == \"{operator.name}\")|.defaultChannel' {cdata}"
       defChan = subprocess.run(chan_filter, shell=True, check=True, capture_output=True).stdout.decode('utf-8').strip()
       enries_filter = f"jq -r --arg op \"{operator.name}\" --arg chan \"{defChan}\" '. | select( .schema==\"olm.channel\" and .name==$chan and .package==$op)|.entries[].name'  {cdata}"
       entries = subprocess.run(enries_filter, shell=True, check=True, capture_output=True).stdout.decode('utf-8').strip().split('\n')
       related_filter = f"jq -r --arg pkg \"{operator.name}\" --arg vers \"{natsorted(entries)[-1]}\" '.|select(.schema == \"olm.bundle\" and .package == $pkg and .name == $vers)|.relatedImages' {cdata}"
-      bundle_name = natsorted(entries)[-1] #subprocess.run(enries_filter, shell=True, check=True, capture_output=True).stdout.decode('utf-8').strip()
+      bundle_name = natsorted(entries)[-1]
       version = upgradepath.GetVersion(bundle_name)
       bundle = OperatorBundle(bundle_name, version)
       for relatedImage in  json.loads(subprocess.run(related_filter, shell=True, check=True, capture_output=True).stdout.decode('utf-8').strip()):
-        bundle.related_images.append(relatedImage)
+        bundle.related_images.append(relatedImage['image'])
       operator.operator_bundles.append(bundle)
 
 
@@ -630,6 +631,7 @@ def isBadImage(image):
   return False
 
 def GenerateDestUrl(image_url):
+  print(f"{image_url}")
   res = image_url.find("/")
   if res != -1:
     GenDestUrl = args.registry_olm + image_url[res:]
