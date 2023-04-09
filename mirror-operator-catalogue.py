@@ -13,6 +13,7 @@ import upgradepath
 import sqlite3
 import json
 import shutil
+from natsort import natsorted
 
 def is_number(string):
   try:
@@ -206,7 +207,7 @@ def main():
   # # NEED TO BE LOGGED IN TO REGISTRY.REDHAT.IO WITHOUT AUTHFILE ARGUMENT
   print("Pruning OLM catalogue...")
   if int(operator_channel.split('.')[0]) > 3 and int(operator_channel.split('.')[1]) > 10:
-      PruneFileBasedCatalog(opm_cli_path, operators, run_temp)
+      operators = PruneFileBasedCatalog(opm_cli_path, operators, run_temp)
   else:
       PruneSqliteBasedCatalog(opm_cli_path, operators, run_temp)
 
@@ -334,7 +335,7 @@ def CreateSummaryFile(operators, mirror_summary_path):
         f.write("[Version: " + bundle.version + "]\n")
         f.write("Image List \n")
         f.write("---------------------------------------- \n")
-        for image in bundle.related_images:
+        for image in bundle.relatedImages:
           f.write(image + "\n")
         f.write("---------------------------------------- \n \n")
       f.write("============================================================\n \n \n")
@@ -346,13 +347,29 @@ def GetFieldValue(data, field):
   else:
     return ""
 
+# Read data from rendered index
+def readJsonFile(cdata):
+    objects = []
+    with open(cdata) as f:
+        braceCount = 0
+        jsonStr = ''
+        for jsonObj in f:
+            braceCount += jsonObj.count('{')
+            braceCount -= jsonObj.count('}')
+            jsonStr += jsonObj
+            if braceCount == 0:
+                objects.append(json.loads(jsonStr))
+                jsonStr = ''
+    return objects
+
 # Create a custom catalog with selected operators from newer file based catalog
 def PruneFileBasedCatalog(opm_cli_path, operators, run_temp):
     script_root_dir = os.path.dirname(os.path.realpath(__file__))
     prune_path = os.path.join(run_temp, "pruned-catalog")
     configs_path = os.path.join(prune_path, "configs")
     cdata = os.path.join(configs_path, "data.out")
-
+    pdata = os.path.join(configs_path, "index.json")
+    render_command = f"{opm_cli_path} render {redhat_operators_catalog_image_url}"
     if args.authfile:
         # Copy to correct folder for opm
         HOME = os.getenv('HOME')
@@ -361,34 +378,64 @@ def PruneFileBasedCatalog(opm_cli_path, operators, run_temp):
     else:
         print("You must pass an auth file with the '--authfile' option")
         exit(1)
-    os.chdir(run_temp)
+    #os.chdir(run_temp)
 
     if not os.path.exists(configs_path):
         print(f"Creating config path ('{configs_path}')")
         os.makedirs(configs_path, exist_ok=True )
-    render_command = f"{opm_cli_path} render {redhat_operators_catalog_image_url}"
     if not os.path.exists(cdata):
         print(f"Running: '{render_command}'")
         data = subprocess.run(render_command, shell=True, check=True, capture_output=True)
         with open(cdata, 'a') as out:
             out.write(data.stdout.decode('utf-8').strip())
-    filter_command = f"jq 'select("
-    idx = 0
-    for oper in operators:
-        if idx == 0:
-            filter_command += f".package == \"{oper.name}\" or .name == \"{oper.name}\""
-        else:
-            filter_command += f" or .package == \"{oper.name}\" or .name == \"{oper.name}\""
-        idx += 1
-    filter_command += f")' {cdata}"
-    #if not os.path.exists(f"{configs_path}/index.json"):
-    filter_data = subprocess.run(filter_command, shell=True, check=True, capture_output=True)
-    print(f"chdir to {configs_path}")
-    os.chdir(configs_path)
-    print(f"writing index.json")
-    with open('index.json', 'a') as index:
-        index.write(filter_data.stdout.decode('utf-8').strip())
+    objects = readJsonFile(cdata)
+    allowed = []
+    for operator in operators:
+       allowed.append(operator.name)
+    operators = []
+    for obj in objects:
+        tmp = []
+        version = ''
+        if obj['schema'] == 'olm.package' and obj['name'] in allowed:
+            operator = OperatorSpec(obj['name'], "")
+            operator.defaultChannel = obj['defaultChannel']
+            operator.icon = obj['icon']
+            operators.append(operator)
+        elif obj['schema'] == 'olm.channel' and obj['package'] in allowed and obj['name'] == operator.defaultChannel:
+            operator = next(operator for operator in operators if operator.name == obj['package'])
+            channel = OperatorChannel(obj['name'])
+            channel.package = obj['package']
+            for ent in obj['entries']:
+               tmp.append(ent['name'])
+            version = natsorted(tmp)[-1]
+            entry = next((ent for ent in obj['entries'] if ent['name'] == version), None)
+            channel.entries = [entry]
+            operator.operator_channels.append(channel)
+        elif obj['schema'] == 'olm.bundle' and obj['package'] in allowed:
+            operator = next(operator for operator in operators if operator.name == obj['package'])
+            for ent in operator.operator_channels[0].entries:
+                if obj['name'] == ent['name']:
+                    bundle = OperatorBundle(obj['name'], version)
+                    bundle.package = obj['package']
+                    bundle.image = obj['image']
+                    for relatedImage in  obj['relatedImages']:
+                        bundle.relatedImages.append(relatedImage)
+                    for property in obj['properties']:
+                        bundle.properties.append(property)
+                    operator.operator_bundles.append(bundle)
+    # GetFileBasedImageListToMirror(operators)
     os.remove(cdata)
+    print(f"writing index.json")
+    with open(pdata, 'a') as index:
+        for operator in operators:
+            package = { "schema": "olm.package", "name": operator.name, "defaultChannel": operator.defaultChannel, "icon": operator.icon }
+            index.write(json.dumps(package, indent=2))
+            for c in operator.operator_channels:
+                chan = {"schema": "olm.channel","name": c.name, "package": c.package,"entries": c.entries}
+                index.write(json.dumps(chan, indent=2))
+            for b in operator.operator_bundles:
+                bund  ={"schema": "olm.bundle","name":b.name, "package": b.package, "image": b.image, "properties": b.properties, "relatedImages": b.relatedImages}
+                index.write(json.dumps(bund, indent=2))
     dockerfile_cmd = f"{opm_cli_path} generate dockerfile {configs_path}"
     print(f"Running '{dockerfile_cmd}'")
     subprocess.run(dockerfile_cmd, shell=True, check=True, capture_output=True)
@@ -413,6 +460,7 @@ def PruneFileBasedCatalog(opm_cli_path, operators, run_temp):
         exit(1)
     print(push_data.stdout.decode('utf-8').strip())
     os.chdir(script_root_dir)
+    return operators
 
 # Create a custom catalogue with selected operators from older sqlite3 based catalog
 def PruneSqliteBasedCatalog(opm_cli_path, operators, run_temp):
@@ -472,7 +520,7 @@ def GetImageListToMirror(operators, db_path):
       result = cur.execute(cmd).fetchall()
       if len(result) > 0:
         for image in result:
-          bundle.related_images.append(image[0])
+          bundle.relatedImages.append(image[0])
 
       # Get bundle images for operator bundle
       cmd = "select bundlepath from operatorbundle where (name like '%" +  operator.name + "%' or bundlepath like '%" +  operator.name + "%') and version='" + version + "';"
@@ -480,7 +528,7 @@ def GetImageListToMirror(operators, db_path):
       result = cur.execute(cmd).fetchall()
       if len(result) > 0:
         for image in result:
-          bundle.related_images.append(image[0])
+          bundle.relatedImages.append(image[0])
 
       operator.operator_bundles.append(bundle)
 
@@ -498,9 +546,13 @@ def getImages(operators):
   image_list = []
   for operator in operators:
     for bundle in operator.operator_bundles:
-      for image in bundle.related_images:
-        if image not in image_list:
-          image_list.append(image)
+      for image in bundle.relatedImages:
+        if type(image) is dict:
+            if image['image'] not in image_list:
+                image_list.append(image['image'])
+        else:
+            if image not in image_list:
+                image_list.append(image)
   return image_list
 
 
@@ -590,12 +642,14 @@ def GetRepoListToMirror(images):
 
   return mirrorList
 
+
 def CreateMappingFile(images):
   repoList = GetSourceToMirrorMapping(images)
   with open(mapping_file, "w") as f:
     for key in repoList:
       f.write(key + "=" + repoList[key])
       f.write('\n')
+
 
 def CreateManifestFile(images):
   with open(image_manifest_file, "w") as f:
@@ -611,7 +665,9 @@ def isBadImage(image):
         return True
   return False
 
+
 def GenerateDestUrl(image_url):
+  print(f"{image_url}")
   res = image_url.find("/")
   if res != -1:
     GenDestUrl = args.registry_olm + image_url[res:]
@@ -632,8 +688,8 @@ def CopyImageToDestinationRegistry(
   else:
     cmd_args = "skopeo copy --dest-tls-verify=false -a docker://{} docker://{}".format(
         sourceImageUrl, destinationImageUrl)
-
   subprocess.run(cmd_args, shell=True, check=True)
+
 
 # Get a Mapping of source to mirror images
 def GetSourceToMirrorMapping(images):
@@ -678,8 +734,10 @@ def RecreatePath(item_path, delete_if_exists = True):
   if not path.exists():
     os.mkdir(item_path)
 
+
 def PrintBreakLine():
   print("----------------------------------------------")
+
 
 class OperatorSpec:
   def __init__(self, name, start_version):
@@ -687,13 +745,26 @@ class OperatorSpec:
       self.start_version = start_version
       self.upgrade_path = ""
       self.operator_bundles = []
+      self.operator_channels = []
+      self.defaultChannel = ""
+      self.icon = {}
+
+
+class OperatorChannel:
+  def __init__(self, name):
+      self.name = name
+      self.package = ""
+      self.entries = []
+
 
 class OperatorBundle:
   def __init__(self, name, version):
       self.name = name
+      self.package = ""
+      self.image = ""
       self.version = version
-      self.related_images = []
-
+      self.properties = []
+      self.relatedImages = []
 
 
 if __name__ == "__main__":
