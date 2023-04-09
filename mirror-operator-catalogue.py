@@ -208,6 +208,8 @@ def main():
   print("Pruning OLM catalogue...")
   if int(operator_channel.split('.')[0]) > 3 and int(operator_channel.split('.')[1]) > 10:
       operators = PruneFileBasedCatalog(opm_cli_path, operators, run_temp)
+      print("Writing summary data..")
+      CreateSummaryFileForFileBasedatalog(operators, mirror_summary_path)
   else:
       PruneSqliteBasedCatalog(opm_cli_path, operators, run_temp)
 
@@ -250,6 +252,22 @@ def main():
 
   cmd_args = "sudo rm -rf {}".format(run_root_dir)
   subprocess.run(cmd_args, shell=True, check=True)
+
+
+
+def CreateSummaryFileForFileBasedatalog(operators, mirror_summary_path):
+  with open(mirror_summary_path, "w") as f:
+    for operator in operators:
+      f.write(operator.name + '\n')
+      f.write("============================================================\n \n")
+      for bundle in operator.operator_bundles:
+        f.write(bundle.name + '\n')
+        f.write("Image List \n")
+        f.write("---------------------------------------- \n")
+        for relatedImage in bundle.relatedImages:
+          f.write(relatedImage["image"] + "\n")
+        f.write("---------------------------------------- \n \n")
+      f.write("============================================================\n \n \n")
 
 
 def GetOcCli(run_temp):
@@ -732,8 +750,7 @@ def RecreatePath(item_path, delete_if_exists = True):
     subprocess.run(cmd_args, shell=True, check=True)
 
   if not path.exists():
-    os.mkdir(item_path)
-
+    os.makedirs(item_path, exist_ok=True)
 
 def PrintBreakLine():
   print("----------------------------------------------")

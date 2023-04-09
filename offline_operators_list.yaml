@@ -1,6 +1,6 @@
 operators:
   - name: kubevirt-hyperconverged
-    start_version: 2.6.5
+    # start_version: 2.6.5
   - name: local-storage-operator
   - name: ocs-operator
   - name: cluster-logging
