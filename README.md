@@ -15,7 +15,7 @@ Because the current [catalogue build and mirror](https://docs.openshift.com/cont
 
 ## Note
 
-This script has been updated for OpenShift 4.6+. Please use the script in the ocp4.5 branch for releases 4.5 and earlier.
+This script has been updated for OpenShift 4.10+. For mirroring operators in OCP 4.10+ upgrade paths are not supported
 
 ## Requirements
 
