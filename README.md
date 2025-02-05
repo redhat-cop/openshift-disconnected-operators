@@ -1,5 +1,9 @@
 # OpenShift Offline Operator Catalogue
 
+Please note: This script is now depricated. Please use [oc-mirror](https://github.com/openshift/oc-mirror) which is the official supported tooling from Red Hat to mirror OLM operators and related images.
+
+----
+
 This script will:
 
 - Create a custom operator catalogue based on the desired operators
